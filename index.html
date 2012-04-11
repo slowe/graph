@@ -211,37 +211,37 @@
 		<p>Following those you'll need:</p>
 
 		<pre class="prettyprint lang-js"><code>$(document).ready(function(){
-	// First we'll build an array of data sets
-	var dataset = [];
+  // First we'll build an array of data sets
+  var dataset = [];
 
-	// Add a data set
-	dataset.push({
-	  // Data in the form [[x1,y1,e1],...[xn,yn,en]]
-	  data: [[0,0.1],[1,0.2],[2,0.1],[3,0.25]],
-	  color: '#FFBBDD',
-	  points: { show: true },
-	  lines: { show: true ,lineWidth: 2 },
-	  clickable: false,
-	  hoverable: false,
-	  // Modify the default hover text with replacements
-	  hovertext: '{{xlabel}}: {{x}}&lt;br /&gt;
-	    {{ylabel}}: {{y}}&lt;br /&gt;Uncertainty: {{e}}',
-	  hoverbefore: '{{title}}&lt;br /&gt;',
-	  css: {
-	    'font-size': '0.8em',
-	    'background-color': obs.observatories[d].html_col
-	  }
-	});
+  // Add a data set
+  dataset.push({
+    // Data in the form [[x1,y1,e1],...[xn,yn,en]]
+    data: [[0,0.1],[1,0.2],[2,0.1],[3,0.25]],
+    color: '#FFBBDD',
+    points: { show: true },
+    lines: { show: true ,lineWidth: 2 },
+    clickable: false,
+    hoverable: false,
+    // Modify the default hover text with replacements
+    hovertext: '{{xlabel}}: {{x}}&lt;br /&gt;
+      {{ylabel}}: {{y}}&lt;br /&gt;Uncertainty: {{e}}',
+    hoverbefore: '{{title}}&lt;br /&gt;',
+    css: {
+      'font-size': '0.8em',
+      'background-color': obs.observatories[d].html_col
+    }
+  });
 
-	// Define some options
-	options = {
-		xaxis:{ label:'Time (HJD)' },
-		yaxis: { label: 'Delta (mag)' },
-		grid: { hoverable: true, clickable: true }
-	};
+  // Define some options
+  options = {
+    xaxis:{ label:'Time (HJD)' },
+    yaxis: { label: 'Delta (mag)' },
+    grid: { hoverable: true, clickable: true }
+  };
 
-	// Attach to the DOM element with the ID 'lightcurve'
-	graph = $.graph('lightcurve', dataset, options);
+  // Attach to the DOM element with the ID 'lightcurve'
+  graph = $.graph('lightcurve', dataset, options);
 });</code></pre>
 
 		<h3>Examples</h3>
