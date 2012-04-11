@@ -6,36 +6,89 @@
     <meta http-equiv="X-UA-Compatible" content="chrome=1" />
     <meta name="description" content="Graph : A Javascript/jQuery/HTML5 x-y graph library." />
     <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/prettify.css">
+    <style type="text/css">
+
+    /* Pretty printing styles. Used with prettify.js. */
+    /* Vim sunburst theme by David Leibovic */
+
+    pre .str, code .str { color: #65B042; } /* string  - green */
+    pre .kwd, code .kwd { color: #E28964; } /* keyword - dark pink */
+    pre .com, code .com { color: #AEAEAE; font-style: italic; } /* comment - gray */
+    pre .typ, code .typ { color: #89bdff; } /* type - light blue */
+    pre .lit, code .lit { color: #3387CC; } /* literal - blue */
+    pre .pun, code .pun { color: #fff; } /* punctuation - white */
+    pre .pln, code .pln { color: #fff; } /* plaintext - white */
+    pre .tag, code .tag { color: #89bdff; } /* html/xml tag    - light blue */
+    pre .atn, code .atn { color: #bdb76b; } /* html/xml attribute name  - khaki */
+    pre .atv, code .atv { color: #65B042; } /* html/xml attribute value - green */
+    pre .dec, code .dec { color: #3387CC; } /* decimal - blue */
+
+    pre.prettyprint, code.prettyprint {
+      background-color: #111111;
+      -moz-border-radius: 8px;
+      -webkit-border-radius: 8px;
+      -o-border-radius: 8px;
+      -ms-border-radius: 8px;
+      -khtml-border-radius: 8px;
+      border-radius: 8px;
+    }
+
+    pre.prettyprint {
+      width: 95%;
+      margin: 1em auto;
+      padding: 1em;
+      white-space: pre-wrap;
+    }
+
+    /* Specify class=linenums on a pre to get line numbering */
+    ol.linenums { margin-top: 0; margin-bottom: 0; color: #AEAEAE; } /* IE indents via margin-left */
+    li.L0,li.L1,li.L2,li.L3,li.L5,li.L6,li.L7,li.L8 { list-style-type: none }
+    /* Alternate shading for lines */
+    li.L1,li.L3,li.L5,li.L7,li.L9 { }
+
+    @media print {
+      pre .str, code .str { color: #060; }
+      pre .kwd, code .kwd { color: #006; font-weight: bold; }
+      pre .com, code .com { color: #600; font-style: italic; }
+      pre .typ, code .typ { color: #404; font-weight: bold; }
+      pre .lit, code .lit { color: #044; }
+      pre .pun, code .pun { color: #440; }
+      pre .pln, code .pln { color: #000; }
+      pre .tag, code .tag { color: #006; font-weight: bold; }
+      pre .atn, code .atn { color: #404; }
+      pre .atv, code .atv { color: #060; }
+    }
+
+    .graph { width: 700px; height: 300px }
+
+  </style>
     <title>Graph</title>
 	<!--[if lt IE 9]><script src="http://lcogt.net/virtualsky/embed/excanvas.js" type="text/javascript"></script><![endif]-->
-	<script language="javascript" type="text/javascript" src="https://raw.github.com/slowe/graph/master/js/jquery.min.js"></script>
-	<script language="javascript" type="text/javascript" src="https://raw.github.com/slowe/graph/master/js/jquery.graph.js"></script>
+	<script language="javascript" type="text/javascript" src="javascripts/prettify.js"></script>
+	<script language="javascript" type="text/javascript" src="javascripts/jquery.min.js"></script>
+	<script language="javascript" type="text/javascript" src="javascripts/jquery.graph.min.js"></script>
 	<script type="text/javascript">
 	$(document).ready(function(){
+		
+		// Set up the prettification of code blocks
+		prettyPrint();
+		
 		options = {
 			series: {
 				lines: { show: false },
 				points: { show: true },
 				shadowSize: 0
 			},
-			xaxis:{
-				//mode:"time",
-				//timeformat:"%D %H:%M",
-				//minTickSize: [1, "hour"],
-				label:'Time (HJD)'
-			},
-			yaxis: {
-				label: 'Delta (mag)'
-			},
-			grid: { hoverable: true, clickable: true },
-			//selection: { mode: "xy", color: '#999999' }
+			xaxis:{ label:'Time (HJD)' },
+			yaxis: { label: 'Delta (mag)' },
+			grid: { hoverable: true, clickable: true }
 		};
 	
 		$.ajax({
 			dataType: "json", 
 			url: "OB110462.json",
 			success: function(obs){
-	
 				data = new Array(obs.observatories.length);
 		
 				var minjd,maxjd;
@@ -53,17 +106,9 @@
 				}
 	
 				options = {
-					xaxis:{
-						//mode:"time",
-						//timeformat:"%D %H:%M",
-						//minTickSize: [1, "hour"],
-						label:'Time (HJD)'
-					},
-					yaxis: {
-						label: 'Delta (mag)'
-					},
-					grid: { hoverable: true, clickable: true },
-					//selection: { mode: "xy", color: '#999999' }
+					xaxis:{ label:'Time (HJD)' },
+					yaxis: { label: 'Delta (mag)' },
+					grid: { hoverable: true, clickable: true }
 				};
 	
 		
@@ -79,12 +124,9 @@
 		
 				options.xaxis = {log: false,label:'MJD (days)',fit:true};
 				options.yaxis.log = false;
-	
-				//d = new Date();
+
 				graph = $.graph('lightcurve', dataset, options);
-				//console.log("Total until end of jquery.graph:" + (new Date() - d) + "ms");
 			}
-	
 		});
 	
 		n = 200;
@@ -107,8 +149,8 @@
         <header class="inner">
           <a id="forkme_banner" href="https://github.com/slowe/graph">Fork Me on GitHub</a>
 
-          <h1 id="project_title">Graph</h1>
-          <h2 id="project_tagline">A Javascript/jQuery/HTML5 x-y graph library.</h2>
+          <h1 id="project_title"><a href="https://github.com/slowe/graph">Graph</a></h1>
+          <h2 id="project_tagline">An HTML5 x-y graph library</h2>
 
           <section id="downloads">
             <a class="zip_download_link" href="https://github.com/slowe/graph/zipball/master">Download this project as a .zip file</a>
@@ -121,17 +163,11 @@
     <div id="main_content_wrap" class="outer">
       <section id="main_content" class="inner">
 
+		<div id="lightcurve" style="width:100%;height:350px;margin-bottom:10px;"></div>
+
 		<h3>Overview</h3>
-		<p>There are many good Javascript/HTML5 graphing libraries already in existence e.g. [Flot](https://github.com/flot/flot), [D3](http://mbostock.github.com/d3/) and [Ico](https://github.com/alexyoung/ico). However they don't make the simple xy data graphs, often used in scientific environments, without extra plugins. I decided to write my own, small, graphing library that could deal with large amounts of data as well as logarithmic axes and page resizing. This was created as part of my work at Las Cumbres Observatory Global Telescope (LCOGT).</p>
+		<p>There are many good Javascript/HTML5 graphing libraries already in existence e.g. <a href="https://github.com/flot/flot">Flot</a>, <a href="http://mbostock.github.com/d3/">D3</a> and <a href="https://github.com/alexyoung/ico">Ico</a>. However they don't make the simple x-y data graphs, often used in scientific environments, without extra plugins. This is an attempt to write a small jQuery plugin that could deal with large amounts of data, uncertainty bars, logarithmic axes, page resizing, and other features.</p>
 
-		<h3>Dependencies</h3>
-		<p>For this library to work it has two dependencies:</p>
-
-		<ul>
-			<li><a href="http://jquery.com/">jquery.js</a> - your site may already use this excellent library</li>
-			<li><a href="http://code.google.com/p/explorercanvas/">excanvas.js</a> - this is used to allow canvas support on Internet Explorer (41.6 kB). If only it wasn't needed.</li>
-		</ul>
-		
 		<h3>Features</h3>
 		<ul>
 			<li>Draws x/y graphs.</li>
@@ -151,36 +187,60 @@
 			<li>The graph inherits the font size/family from its parent elemet in the DOM (i.e. you can set it in the CSS).</li>
 		</ul>
 
-		<h3>Limitations</h3>
+		<h3>Dependencies and Limitations</h3>
+		<p>For this library to work it has two dependencies:</p>
+
+		<ul>
+			<li><a href="http://jquery.com/">jquery.js</a> - your site may already use this excellent library</li>
+			<li><a href="http://code.google.com/p/explorercanvas/">excanvas.js</a> - this is used to allow canvas support on Internet Explorer (41.6 kB). If only it wasn't needed.</li>
+		</ul>
+		
 		<p>Some features (e.g. fullscreen) are experimental and will only work in the latest versions of modern browsers.</p>
 
 		<h3>Usage</h3>
 		<p>You need to include the appropriate Javascript files:</p>
 
-		<pre><code>			<script src="jquery.js"></script>
-			<script src="excanvas.js"></script>
-			<script src="jquery.graph.js"></script></code></pre>
+		<pre class="prettyprint lang-js"><code>&lt;script src="jquery.js"&gt;&lt;/script&gt;
+&lt;script src="excanvas.js"&gt;&lt;/script&gt;
+&lt;script src="jquery.graph.js"&gt;&lt;/script&gt;</code></pre>
 
 		<p>Following those you'll need:</p>
 
-		<pre><code>	$(document).ready(function(){
-		var dataset = [];
-		dataset.push({
-			data: [[0,0.1],[1,0.2],[2,0.1],[3,0.25]],
-			color: '#FFBBDD',
-			points: { show: true },
-			lines: { show: true ,lineWidth: 2 },
-			clickable: false,
-			hoverable: false
-		});
-		options = {
-			xaxis:{ label:'Time (HJD)' },
-			yaxis: { label: 'Delta (mag)' },
-			grid: { hoverable: true, clickable: true }
-		};
-		// Attach to the DOM element with the ID 'lightcurve'
-		graph = $.graph('lightcurve', dataset, options);
-	});</code></pre>
+		<pre class="prettyprint lang-js"><code>$(document).ready(function(){
+	// First we'll build an array of data sets
+	var dataset = [];
+
+	// Add a data set
+	dataset.push({
+		// Data in the form [[x1,y1,e1],...[xn,yn,en]]
+		data: [[0,0.1],[1,0.2],[2,0.1],[3,0.25]],
+		color: '#FFBBDD',
+		points: { show: true },
+		lines: { show: true ,lineWidth: 2 },
+		clickable: false,
+		hoverable: false
+	});
+
+	// Define some options
+	options = {
+		xaxis:{ label:'Time (HJD)' },
+		yaxis: { label: 'Delta (mag)' },
+		grid: { hoverable: true, clickable: true }
+	};
+
+	// Attach to the DOM element with the ID 'lightcurve'
+	graph = $.graph('lightcurve', dataset, options);
+});</code></pre>
+
+		<h3>Examples</h3>
+		<p>The top of the page is a live example that constructs the data series from a <code>JSON</code> file. Below are two more. Try making the browser window narrow to see how the graphs resize.</p>
+
+		<div id="lightcurve2" style="height:250px;font-size:0.7em;font-family:Courier New;margin-bottom:16px;"></div>
+		
+		<div style="padding:16px;background-color:#ccc;">
+			<div id="lightcurve3" style="height:350px;font-family:Arial,sans-serif;"></div>
+			<br />This is some normal text in the same bounding box to show the background colour.
+		</div>
 
 		<h3>Author</h3>
 		<p>Stuart Lowe works for the [Las Cumbres Observatory Global Telescope](http://lcogt.net/). LCOGT is a private operating foundation, building a global network of telescopes for professional research and citizen investigations.</p>
