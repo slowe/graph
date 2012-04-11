@@ -172,7 +172,7 @@
 
 		<h3>Features (so far...)</h3>
 		<ul>
-			<li>Draws x/y graphs.</li>
+			<li>Draws x-y graphs.</li>
 			<li>Can include error bars.</li>
 			<li>Both axes (or just one) can be logarithmic.</li>
 			<li>Automatically chooses "nice" gridline spacings.</li>
@@ -222,7 +222,14 @@
 		points: { show: true },
 		lines: { show: true ,lineWidth: 2 },
 		clickable: false,
-		hoverable: false
+		hoverable: false,
+		// Modify the default hover text with replacements
+		hovertext: '{{xlabel}}: {{x}}<br />{{ylabel}}: {{y}}<br />Uncertainty: {{e}}',
+		hoverbefore: '{{title}}<br />',
+		css: {
+			'font-size': '0.8em',
+			'background-color': obs.observatories[d].html_col
+		}
 	});
 
 	// Define some options
