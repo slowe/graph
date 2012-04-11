@@ -165,7 +165,7 @@
       <section id="main_content" class="inner">
 
 		<div id="lightcurve" style="width:100%;height:350px;margin-bottom:10px;"></div>
-		<div style="text-align:center;font-size:0.8em;color:#999;padding-left:25px; padding-right:25px;">This plot represents observations of a gravitational <a href="http://lcogt.net/book-page/gravitational-microlensing">microlensing</a> event. Each data series shows the variation in brightness of the target star as measured by different telescopes in the <a href="http://robonet.lcogt.net/">ROBONET</a> collaboration.</div>
+		<div style="text-align:center;font-size:0.8em;color:#999;padding-left:25px; padding-right:25px;">This plot represents observations of a gravitational <a href="http://lcogt.net/book-page/gravitational-microlensing">microlensing</a> event. Each data series shows the variation in brightness of the target star as measured by different telescopes in the <a href="http://robonet.lcogt.net/">ROBONET</a> collaboration. See <a href="#examples">more examples</a></div>
 
 		<h3>Overview</h3>
 		<p>There are many good Javascript/HTML5 graphing libraries already in existence e.g. <a href="https://github.com/flot/flot">Flot</a>, <a href="http://mbostock.github.com/d3/">D3</a> and <a href="https://github.com/alexyoung/ico">Ico</a>. However they don't easily make the simple x-y data graphs often used in scientific environments. This is an attempt to write a small jQuery plugin that could deal with large amounts of data, error bars, logarithmic axes, page resizing, and other features. This is still under active development.</p>
@@ -243,7 +243,7 @@
   graph = $.graph('lightcurve', dataset, options);
 });</code></pre>
 
-		<h3>Examples</h3>
+		<h3 id="examples">Examples</h3>
 		<p>The top of the page is a live example that constructs the data series from a <code>JSON</code> file. Below are two more. Try making the browser window narrow to see how the graphs resize.</p>
 
 		<div id="lightcurve2" style="height:250px;font-size:0.7em;font-family:Courier New;margin-bottom:16px;"></div>
