@@ -838,16 +838,20 @@
 		this.canvas.ctx.textBaseline = 'top';
 		y1 = this.chart.top+this.chart.height;
 		y2 = this.chart.top;
+		// Calculate the number of decimal places for the increment - helps with rounding errors
+		prec = ""+this.x.inc;
+		prec = (prec.indexOf('.') > 0) ? prec.length-prec.indexOf('.')-1 : 0;
 		for(var i = this.x.gmin; i <= this.x.gmax; i += this.x.inc) {
 			x = this.getXPos((this.x.log ? Math.pow(10,i): i));
 			if(!x || x < this.chart.left || x > this.chart.left+this.chart.width) continue;
 			// As <canvas> usings sub-pixel positioning we want to shift the placement 0.5 pixels
 			x = (x-Math.round(x) > 0) ? Math.floor(x)+0.5 : Math.ceil(x)-0.5;
+			j = i.toFixed(prec);
 			this.canvas.ctx.beginPath();
-			this.canvas.ctx.textAlign = (i==this.x.gmax) ? 'end' : (i==this.x.gmin ? 'start' : 'center');
+			this.canvas.ctx.textAlign = (j==this.x.gmax) ? 'end' : (j==this.x.gmin ? 'start' : 'center');
 			this.canvas.ctx.strokeStyle = (this.options.grid.color ? this.options.grid.color : 'rgba(0,0,0,0.5)');
-			this.canvas.ctx.fillText(addCommas((this.x.log ? Math.pow(10, i) : i)),x.toFixed(1),(y1+3).toFixed(1));
-			if(grid && i != this.x.gmin && i != this.x.gmax){
+			this.canvas.ctx.fillText(addCommas((this.x.log ? Math.pow(10, j) : j)),x.toFixed(1),(y1+3).toFixed(1));
+			if(grid && j != this.x.gmin && j != this.x.gmax){
 				this.canvas.ctx.moveTo(x,y1);
 				this.canvas.ctx.lineTo(x,y2);
 				this.canvas.ctx.stroke();
