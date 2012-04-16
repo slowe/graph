@@ -290,7 +290,9 @@ graph2 = $.graph('lightcurve2', dataset, options);
 			<div id="lightcurve3" style="height:350px;font-family:Arial,sans-serif;"></div>
 			<br />This is some normal text in the same bounding box to show the background colour. This plot actually shows the dip in brightness of a star caused by a transiting planet. The depth of the dip can be used to estimate the relative size of the planet and star.
 		</div>
-		<pre class="prettyprint lang-js"><code>graph3 = $.graph('lightcurve3', {
+		<pre class="prettyprint lang-js"><code>series2 = [{x:1,y:0.999,err:0.022},{x:2,y:1.002,err:0.012}...];
+
+graph3 = $.graph('lightcurve3', {
 	data: series2,
 	color: "#dd9901",
 	points: { show: true, radius: 1.5 },
@@ -303,7 +305,9 @@ graph2 = $.graph('lightcurve2', dataset, options);
 
 		<h4>Example 4</h4>
 		<div id="lightcurve4" style="height:350px;margin-top:16px;"></div>
-		<pre class="prettyprint lang-js"><code>graph3 = $.graph('lightcurve3', {
+		<pre class="prettyprint lang-js"><code>series2 = [{x:1,y:0.999,err:0.022},{x:2,y:1.002,err:0.012}...];
+
+graph4 = $.graph('lightcurve4', {
 	data: series2,
 	color: "#44bb44",
 	points: { show: true, radius: 1.5 },
