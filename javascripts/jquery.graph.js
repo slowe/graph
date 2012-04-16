@@ -416,7 +416,7 @@
 					g.canvas.ctx.beginPath();
 					g.canvas.ctx.strokeStyle = 'rgb(0,0,0)';
 					g.canvas.ctx.lineWidth = g.options.grid.border;
-					g.canvas.ctx.strokeRect(g.selectfrom[0],g.selectfrom[1],g.selectto[0]-g.selectfrom[0],g.selectto[1]-g.selectfrom[1]);
+					g.canvas.ctx.strokeRect(g.selectfrom[0]-0.5,g.selectfrom[1]-0.5,g.selectto[0]-g.selectfrom[0],g.selectto[1]-g.selectfrom[1]);
 					g.canvas.ctx.stroke();
 					g.canvas.ctx.closePath();
 				}
@@ -914,9 +914,13 @@
 				this.canvas.ctx.beginPath();
 				this.canvas.ctx.lineWidth = (this.data[s].lines.lineWidth ? this.data[s].lines.lineWidth : 1);
 				for(var i = 0; i < this.data[s].x.length ; i++){
-					if(this.data[s].x[i] && this.data[s].y[i] && this.data[s].data[i][0] >= this.x.min && this.data[s].data[i][0] <= this.x.max && this.data[s].data[i][1] >= this.y.min && this.data[s].data[i][1] <= this.y.max){
-						if(i == 0) this.canvas.ctx.moveTo(this.data[s].x[i],this.data[s].y[i]);
-						else this.canvas.ctx.lineTo(this.data[s].x[i],this.data[s].y[i]);
+					if(this.data[s].x[i] && this.data[s].y[i]){
+						if(this.data[s].data[i][0] >= this.x.min && this.data[s].data[i][0] <= this.x.max && this.data[s].data[i][1] >= this.y.min && this.data[s].data[i][1] <= this.y.max){
+							if(i == 0) this.canvas.ctx.moveTo(this.data[s].x[i],this.data[s].y[i]);
+							else this.canvas.ctx.lineTo(this.data[s].x[i],this.data[s].y[i]);
+						}else{
+							this.canvas.ctx.moveTo(this.data[s].x[i],this.data[s].y[i]);
+						}
 					}
 				}
 				this.canvas.ctx.stroke();
