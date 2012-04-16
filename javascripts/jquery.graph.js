@@ -165,7 +165,7 @@
 		return ( today.getTime() / 86400000.0 ) + 2440587.5;
 	}
 
-	// A non-jQuery dependet function to get a style
+	// A non-jQuery dependent function to get a style
 	function getStyle(el, styleProp) {
 		if (typeof window === 'undefined') return;
 		var style;
@@ -176,7 +176,6 @@
 		return style;
 	}
 	// End of helper functions
-
 
 
 	// Define the class to deal with <canvas>.
@@ -259,12 +258,15 @@
 			this.ctx.fillText(loading,(this.wide-this.ctx.measureText(loading).width)/2,(this.tall-fs)/2)
 			this.ctx.fill();
 		}
-		this.canvas.bind("mousemove",{me:this}, function(e){
-			e.data.me.trigger("mousemove",{event:e});
-		});
+
+		// Bind events
 		if(fullScreenApi.supportsFullScreen){
+			// Bind the fullscreen function to the double-click event if the browser supports fullscreen
 			this.canvas.bind('dblclick', {me:this}, function(e){ e.data.me.toggleFullScreen(); });
 		}
+		this.canvas.bind("mousedown",{me:this}, function(e){ e.data.me.trigger("mousedown",{event:e}); });
+		this.canvas.bind("mousemove",{me:this}, function(e){ e.data.me.trigger("mousemove",{event:e}); });
+		this.canvas.bind("mouseup",{me:this}, function(e){ e.data.me.trigger("mouseup",{event:e}); });
 	}
 	// Attach a handler to an event for the Canvas object in a style similar to that used by jQuery
 	//   .bind(eventType[,eventData],handler(eventObject));
@@ -290,12 +292,20 @@
 		if(typeof args != "object") args = {};
 		var o = [];
 		if(typeof this.events[ev]=="object"){
-			for(i = 0 ; i < this.events[ev].length ; i++){
+			for(var i = 0 ; i < this.events[ev].length ; i++){
 				var e = G.extend(this.events[ev][i].e,args);
 				if(typeof this.events[ev][i].fn == "function") o.push(this.events[ev][i].fn.call(this,e))
 			}
 		}
-		if(o.length > 0) return o
+		if(o.length > 0) return o;
+	}
+	Canvas.prototype.copyToClipboard = function(){
+		this.clipboard = this.ctx.getImageData(0, 0, this.wide, this.tall);
+		this.clipboardData = this.clipboard.data;
+	}
+	Canvas.prototype.pasteFromClipboard = function(){
+		this.clipboard.data = this.clipboardData;
+		this.ctx.putImageData(this.clipboard, 0, 0);
 	}
 	// Will toggle the <canvas> as a full screen element if the browser supports it.
 	Canvas.prototype.toggleFullScreen = function(){
@@ -341,10 +351,11 @@
 		this.trigger("resize",{w:w,h:h});
 	}
 	// Internal function to update the internal variables defining the width and height.
-	Canvas.prototype.setWH = function(w,h){
+	Canvas.prototype.setWH = function(w,h,ctx){
 		if(!w || !h) return;
-		this.c.width = w;
-		this.c.height = h;
+		var c = (typeof ctx=="undefined") ? this.c : ctx;
+		c.width = w;
+		c.height = h;
 		this.wide = w;
 		this.tall = h;
 		// Bug fix for IE 8 which sets a width of zero to a div within the <canvas>
@@ -361,7 +372,7 @@
 	//   options (object) contains any customisation options for the graph as a whole e.g. options = { xaxis:{ label:'Time (HJD)' },yaxis: { label: 'Delta (mag)' }};
 	function Graph(element, data, options){
 		// Define some variables
-		this.version = "0.1.1";
+		this.version = "0.1.2";
 		this.logging = false;
 		this.start = new Date();
 		if(typeof element!="string") return;
@@ -369,17 +380,66 @@
 		this.data = {};
 		this.chart = {};
 		this.options = {};
+		this.selecting = false;
 
 		// Define the drawing canvas
 		this.canvas = new Canvas({id:this.id});
+
+		// Bind events to the canvas
 		this.canvas.bind("resize",{me:this},function(ev){
+			// Attach an event to deal with resizing the <canvas>
 			if(ev.data.me.logging) var d = new Date();
 			ev.data.me.setOptions();
 			ev.data.me.calculateData();
 			ev.data.me.draw();
 			if(ev.data.me.logging) console.log("Total until end of resize:" + (new Date() - d) + "ms");
 		}).bind("mousemove",{me:this},function(ev){
+			// Attach hover event
 			ev.data.me.highlight(ev.data.me.dataAtMousePosition(ev.event.layerX,ev.event.layerY));
+			return true;
+		}).bind("mousedown",{me:this},function(ev){
+			var g = ev.data.me;
+			if(g.within(ev.event.layerX,ev.event.layerY)){
+				g.selectfrom = [ev.event.layerX,ev.event.layerY];
+				g.selectto = g.selectfrom;
+				g.selecting = true;
+			}
+			g.canvas.copyToClipboard();
+			return true;
+		}).bind("mousemove",{me:this},function(ev){
+			var g = ev.data.me;
+			if(g.selecting){
+				if(g.within(ev.event.layerX,ev.event.layerY)){
+					g.selectto = [ev.event.layerX,ev.event.layerY];
+					g.canvas.pasteFromClipboard();
+					// Draw selection rectangle
+					g.canvas.ctx.beginPath();
+					g.canvas.ctx.strokeStyle = 'rgb(0,0,0)';
+					g.canvas.ctx.lineWidth = g.options.grid.border;
+					g.canvas.ctx.strokeRect(g.selectfrom[0],g.selectfrom[1],g.selectto[0]-g.selectfrom[0],g.selectto[1]-g.selectfrom[1]);
+					g.canvas.ctx.stroke();
+					g.canvas.ctx.closePath();
+				}
+			}
+			return true;
+		}).bind("mouseup",{me:this},function(ev){
+			var g = ev.data.me;
+			if(g.selecting){
+				var c1 = g.pixel2data(g.selectfrom[0],g.selectfrom[1]);
+				var c2 = g.pixel2data(g.selectto[0],g.selectto[1]);
+				if(c1.x==c2.x && c1.y==c2.y){
+					g.zoom();
+				}else{
+					xlo = (c1.x < c2.x) ? c1.x : c2.x;
+					xhi = (c1.x < c2.x) ? c2.x : c1.x;
+					ylo = (c1.y < c2.y) ? c1.y : c2.y;
+					yhi = (c1.y < c2.y) ? c2.y : c1.y;
+					g.zoom(xlo,xhi,ylo,yhi);
+				}
+			}
+			g.selecting = false;
+			g.canvas.pasteFromClipboard();
+			return true;
 		})
 
 		// Extend the options with those provided by the user
@@ -388,6 +448,8 @@
 
 		// Finally, set the data and update the display
 		this.updateData(data);
+		
+		return this;
 	}
 	Graph.prototype.setOptions = function(options){
 		options = options || {};
@@ -397,23 +459,36 @@
 		this.options.height = parseInt(getStyle(this.id, 'height'), 10);
 		// Add user-defined options
 		this.options = G.extend(this.options, options);
+
+		// Set defaults for options that haven't already been set
+		if(typeof this.options.grid!="object") this.options.grid = {};
+		if(typeof this.options.grid.show!="boolean") this.options.grid.show = true;
+		if(typeof this.options.grid.border!="number") this.options.grid.border = 1;
+		if(typeof this.options.xaxis!="object") this.options.xaxis = {};
+		if(typeof this.options.yaxis!="object") this.options.yaxis = {};
+		if(typeof this.options.xaxis.label!="string") this.options.xaxis.label = "";
+		if(typeof this.options.yaxis.label!="string") this.options.yaxis.label = "";
+		if(typeof this.options.xaxis.fit!="boolean") this.options.xaxis.fit = false;
+		if(typeof this.options.yaxis.fit!="boolean") this.options.yaxis.fit = false;
+		if(typeof this.options.xaxis.log!="boolean") this.options.xaxis.log = false;
+		if(typeof this.options.yaxis.log!="boolean") this.options.yaxis.log = false;
 	}
 	Graph.prototype.updateData = function(data) {
 		this.data = this.data = (data.length > 1) ? data : [data];
-		this.setGraphRange();
+		this.getGraphRange();
 		this.calculateData();
 		this.clear();
 		this.draw();
 	}
 	Graph.prototype.setColours = function(){
 		this.colours = { background:'', lines:'rgb(0,0,0)', labels:'rgb(0,0,0)' };
-		if(this.options.grid && typeof this.options.grid.background=="string") this.colours.background = this.options.grid.background;
-		if(this.options.grid && typeof this.options.grid.color=="string") this.colours.lines = this.options.grid.color;
+		if(typeof this.options.grid.background=="string") this.colours.background = this.options.grid.background;
+		if(typeof this.options.grid.color=="string") this.colours.lines = this.options.grid.color;
 		if(typeof this.options.labels=="string") this.colours.labels = this.options.grid.color;
 	}
-	Graph.prototype.setGraphRange = function(){
-		this.x = { min: 1e32, max: -1e32, log: ((this.options.xaxis && this.options.xaxis.log) ? this.options.xaxis.log : false), label:{text:(this.options.xaxis && this.options.xaxis.label ? this.options.xaxis.label : "")}, fit:((this.options.xaxis && this.options.xaxis.fit) ? this.options.xaxis.fit : false)};
-		this.y = { min: 1e32, max: -1e32, log: ((this.options.yaxis && this.options.yaxis.log) ? this.options.yaxis.log : false), label:{text:(this.options.yaxis && this.options.yaxis.label ? this.options.yaxis.label : "")}, fit:((this.options.yaxis && this.options.yaxis.fit) ? this.options.yaxis.fit : false) };
+	Graph.prototype.getGraphRange = function(){
+		this.x = { min: 1e32, max: -1e32, log: this.options.xaxis.log, label:{text:this.options.xaxis.label}, fit:this.options.xaxis.fit };
+		this.y = { min: 1e32, max: -1e32, log: this.options.yaxis.log, label:{text:this.options.yaxis.label}, fit:this.options.yaxis.fit };
 
 		if(this.data.length <= 0) return false;
 		
@@ -443,8 +518,30 @@
 		this.x.datarange = this.x.max-this.x.min;
 		this.y.datamin = this.y.min;
 		this.y.datamax = this.y.max;
-		this.defineAxes();
+		this.y.datarange = this.y.max-this.y.min;
+		this.defineAxis("x");
+		this.defineAxis("y");
 		return true;
+	}
+
+	Graph.prototype.zoom = function(x1,x2,y1,y2){
+		// Immediately return if the input seems wrong
+		if(typeof x1!="number" || typeof x2!="number" || typeof y1!="number" || typeof y2!="number"){
+			this.x.min = this.x.datamin;
+			this.x.max = this.x.datamax;
+			this.y.min = this.y.datamin;
+			this.y.max = this.y.datamax;
+			this.defineAxis("x");
+			this.defineAxis("y");		
+		}else{
+			// Re-define the axes
+			this.defineAxis("x",x1,x2);
+			this.defineAxis("y",y1,y2);
+		}
+		this.calculateData();
+		// Update the graph
+		this.clear();
+		this.draw();
 	}
 	
 	Graph.prototype.getYOff = function(y){
@@ -452,19 +549,35 @@
 		return this.chart.height*y/(this.y.range);
 	}
 	
+	// For an input data value find the y-pixel location
 	Graph.prototype.getYPos = function(y){
 		if(this.y.log) y = G.log10(y);
-		return (y < this.y.min || y > this.y.max) ? (y > this.y.max ? this.chart.top : this.chart.top+this.chart.height) : this.options.height-(this.chart.bottom + this.chart.height*((y-this.y.min)/(this.y.range)));
+		return (y < this.y.min || y > this.y.max) ? (y > this.y.max ? this.chart.top-1 : this.chart.top+this.chart.height+1) : this.options.height-(this.chart.bottom + this.chart.height*((y-this.y.min)/(this.y.range)));
 	}
 	
+	// For an input data value find the x-pixel location
 	Graph.prototype.getXPos = function(x){
 		if(this.x.log) x = G.log10(x);
-		if(this.x.fit) return (x < this.x.datamin || x > this.x.datamax) ? (x < this.x.datamin ? this.chart.left-1 : this.chart.left+this.chart.width+1) : (this.x.dir=="reverse" ? this.chart.left + this.chart.width*(Math.abs(this.x.datamax-x)/(this.x.range)) : this.chart.left + this.chart.width*(Math.abs(x-this.x.datamin)/(this.x.datarange)));
-		return (x < this.x.min || x > this.x.max) ? (x < this.x.min ? this.chart.left : this.chart.left+this.chart.width) : (this.x.dir=="reverse" ? this.chart.left + this.chart.width*(Math.abs(this.x.max-x)/(this.x.range)) : this.chart.left + this.chart.width*(Math.abs(x-this.x.min)/(this.x.range)));
+		//if(this.x.fit) return (x < this.x.datamin || x > this.x.datamax) ? (x < this.x.datamin ? this.chart.left-1 : this.chart.left+this.chart.width+1) : (this.x.dir=="reverse" ? this.chart.left + this.chart.width*(Math.abs(this.x.datamax-x)/(this.x.range)) : this.chart.left + this.chart.width*(Math.abs(x-this.x.datamin)/(this.x.datarange)));
+		return (x < this.x.min || x > this.x.max) ? (x < this.x.min ? this.chart.left-1 : this.chart.left+this.chart.width+1) : (this.x.dir=="reverse" ? this.chart.left + this.chart.width*(Math.abs(this.x.max-x)/(this.x.range)) : this.chart.left + this.chart.width*(Math.abs(x-this.x.min)/(this.x.range)));
 	}
 	
+	// For an input data value find the pixel locations
 	Graph.prototype.getPixPos = function(x,y){
 		return [this.getXPos(x),this.getYPos(y)];
+	}
+	
+	// Are the x,y pixel coordinates in the displayed chart area?
+	Graph.prototype.within = function(x,y){
+		if(x > this.chart.left && y < this.chart.top+this.chart.height) return true;
+		return false;
+	}
+	
+	// Provide the pixel coordinates (x,y) and return the data-space values
+	Graph.prototype.pixel2data = function(x,y){
+		x = this.x.min+((x-this.chart.left)/this.chart.width)*this.x.range;
+		y = this.y.min+(1-(y-this.chart.top)/this.chart.height)*this.y.range;
+		return {x:x,y:y};
 	}
 	
 	Graph.prototype.dataAtMousePosition = function(x,y){
@@ -480,7 +593,11 @@
 	}
 	
 	Graph.prototype.highlight = function(d){
+		if(this.selecting) return;	// If we are dragging we don't want to highlight points
 		if(this.lookup && d && d.length == 2){
+			// We want to put the saved version of the canvas back
+			this.canvas.pasteFromClipboard();
+			
 			var s = d[0];
 			var i = d[1];
 			var twopi = 2*Math.PI;
@@ -530,45 +647,53 @@
 			if(this.annotated){
 				this.annotated = false;
 				this.coordinates.hide();
-				this.clear();
-				this.draw();
+				//this.clear();
+				//this.draw();
+				this.canvas.pasteFromClipboard();
 			}
 		}
 	}
-	Graph.prototype.defineAxes = function(min, max){
-		this.defineAxis("x");
-		this.defineAxis("y");
-	}
-	
-	Graph.prototype.defineAxis = function(axis){
+
+	// Defines this.x.max, this.x.min, this.x.inc, this.x.range
+	Graph.prototype.defineAxis = function(axis,min,max){
+
+		// Immediately return if the input seems wrong
 		if(typeof axis != "string" || (axis != "x" && axis != "y")) return false;
 
-		// Sort out log scales
+		// Set the min/max if provided
+		if(typeof max=="number") this[axis].max = max;
+		if(typeof min=="number") this[axis].min = min;
+		// Set the range of the data
+		this[axis].range = this[axis].max - this[axis].min;
+
+		// Sort out what to do for log scales
 		if(this[axis].log){
+
 			// Adjust the low and high values for log scale
-			this[axis].max = Math.ceil(G.log10(this[axis].max));
-			this[axis].min = (this[axis].min <= 0) ? this[axis].max-2 : Math.floor(G.log10(this[axis].min));
+			this[axis].gmax = Math.ceil(G.log10(this[axis].max));
+			this[axis].gmin = (this[axis].min <= 0) ? this[axis].gmax-2 : Math.floor(G.log10(this[axis].min));
 			this[axis].inc = 1;
-			this[axis].range = this[axis].max-this[axis].min;
 			return true;
+
 		}
 
-		this[axis].range = this[axis].max - this[axis].min;		// range of data
-		// If we have zero range we need to expand the range
+		// If we have zero range we need to expand it
 		if(this[axis].range < 0){
 			this[axis].inc = 0.0;
 			return true;
 		}else if(this[axis].range == 0){
-			this[axis].min = Math.ceil(this[axis].max)-1;
-			this[axis].max = Math.ceil(this[axis].max);
+			this[axis].gmin = Math.ceil(this[axis].max)-1;
+			this[axis].gmax = Math.ceil(this[axis].max);
+			this[axis].min = this[axis].gmin;
+			this[axis].max = this[axis].gmax;
 			this[axis].inc = 1.0;
 			this[axis].range = this[axis].max-this[axis].min;
 			return true;
 		}
 
+		// Calculate reasonable grid line spacings
 		t_inc = Math.pow(10,Math.ceil(G.log10(this[axis].range/10)));
 		t_max = (Math.floor(this[axis].max/t_inc))*t_inc;
-
 		if(t_max < this[axis].max) t_max += t_inc;
 		t_min = t_max;
 		var i = 0;
@@ -576,21 +701,21 @@
 			i++;
 			t_min -= t_inc;
 		}while(t_min > this[axis].min);
-	
+
 		// Test for really tiny values that might mess up the calculation
 		if(Math.abs(t_min) < 1E-15) t_min = 0.0;
 	
-		// Add more tick marks if necessary
+		// Add more tick marks if we only have a few
 		while(i < 5) {
 			t_inc /= 2.0;
 			if((t_min + t_inc) <= this[axis].min) t_min += t_inc;
 			if((t_max - t_inc) >= this[axis].max) t_max -= t_inc ;
 			i = i*2;
 		}
-		this[axis].min = t_min;
-		this[axis].max = t_max;
+		// Set the first/last gridline values as well as the spacing
+		this[axis].gmin = t_min;
+		this[axis].gmax = t_max;
 		this[axis].inc = t_inc;
-		this[axis].range = this[axis].max-this[axis].min;
 
 		return true;
 	}
@@ -608,33 +733,36 @@
 			this.chart.fontsize = (typeof fs=="string") ? parseInt(fs) : 12;
 			this.chart.fontfamily = (typeof ff=="string") ? ff : "";
 		}
-		this.chart.top = this.chart.padding+0.5;
-		this.chart.left = (this.y.label.text) ? this.chart.padding+Math.round(3.5*this.chart.fontsize)-0.5 : this.chart.padding+Math.round(3*this.chart.fontsize)-0.5;
-		this.chart.right = this.chart.padding+0.5;
-		this.chart.bottom = (this.x.label.text) ? this.chart.padding+Math.round(4.5*this.chart.fontsize/2)-0.5 : this.chart.padding+Math.round(2.5*this.chart.fontsize/2)+0.5;
+		// Correct for sub-pixel positioning
+		b = this.options.grid.border*0.5;
+		this.chart.top = this.chart.padding+b;
+		this.chart.left = (this.y.label.text) ? this.chart.padding+Math.round(3.5*this.chart.fontsize)-b : this.chart.padding+Math.round(3*this.chart.fontsize)-b;
+		this.chart.right = this.chart.padding+b;
+		this.chart.bottom = (this.x.label.text) ? this.chart.padding+Math.round(4.5*this.chart.fontsize/2)-b : this.chart.padding+Math.round(2.5*this.chart.fontsize/2)+b;
 		this.chart.width = this.canvas.wide-this.chart.right-this.chart.left;
 		this.chart.height = this.canvas.tall-this.chart.bottom-this.chart.top;
 	}
 	
 	// Draw the axes and grid lines for the graph
 	Graph.prototype.drawAxes = function(){
-		grid = (this.options.grid && typeof this.options.grid.show=="boolean") ? this.options.grid.show : true;
+		grid = this.options.grid.show;
 		o = this.chart;
 		rot = Math.PI/2;
-
+		
 		this.canvas.ctx.beginPath();
 		this.canvas.ctx.font = this.chart.fontsize+'px '+this.chart.fontfamily;
 		this.canvas.ctx.textBaseline = 'middle';
 
 		// Draw main rectangle
 		this.canvas.ctx.strokeStyle = 'rgb(0,0,0)';
-		this.canvas.ctx.lineWidth = 1;
-		if(this.options.grid && typeof this.options.grid.background=="string"){
+		this.canvas.ctx.lineWidth = this.options.grid.border;
+		if(typeof this.options.grid.background=="string"){
 			this.canvas.ctx.fillStyle = this.options.grid.background;
 			this.canvas.ctx.fillRect(o.left,o.top,o.width,o.height);
 		}
 		this.canvas.ctx.strokeRect(o.left,o.top,o.width,o.height);
 
+		this.canvas.ctx.lineWidth = 1;
 		// Draw x label
 		if(this.x.label.text!=""){
 			this.canvas.ctx.textAlign = "center";
@@ -669,9 +797,9 @@
 		// Calculate the number of decimal places for the increment - helps with rounding errors
 		prec = ""+this.y.inc;
 		prec = prec.length-prec.indexOf('.')-1;
-		for(var i = this.y.min; i <= this.y.max; i+=this.y.inc) {
+		for(var i = this.y.gmin; i <= this.y.gmax; i += this.y.inc) {
 			y = this.getYPos((this.y.log ? Math.pow(10,i): i));
-			if(!y) continue;
+			if(!y || y < this.chart.top || y > this.chart.top+this.chart.height) continue;
 			// As <canvas> usings sub-pixel positioning we want to shift the placement 0.5 pixels
 			y = (y-Math.round(y) > 0) ? Math.floor(y)+0.5 : Math.ceil(y)-0.5;
 			j = i.toFixed(prec);
@@ -679,7 +807,7 @@
 			this.canvas.ctx.beginPath();
 			this.canvas.ctx.strokeStyle = (this.options.grid.color ? this.options.grid.color : 'rgba(0,0,0,0.5)');
 			this.canvas.ctx.fillText((this.y.log ? Math.pow(10, j) : j),x1-3,(y+a).toFixed(1));
-			if(grid && i != this.y.min && i != this.y.max){
+			if(grid && i != this.y.gmin && i != this.y.gmax){
 				this.canvas.ctx.moveTo(x1,y);
 				this.canvas.ctx.lineTo(x2,y);
 			}
@@ -692,7 +820,7 @@
 				this.canvas.ctx.lineWidth = (s.width ? s.width : 0.5);
 				for(var j = 0; j < this.subgrid.length ; j++){
 					di = i+this.subgrid[j];
-					if(di < this.y.max){
+					if(di < this.y.gmax){
 						y = this.getYPos(Math.pow(10,di))+0.5;
 						// As <canvas> usings sub-pixel positioning we want to shift the placement 0.5 pixels
 						y = (y-Math.round(y) > 0) ? Math.floor(y)+0.5 : Math.ceil(y)-0.5;
@@ -710,16 +838,16 @@
 		this.canvas.ctx.textBaseline = 'top';
 		y1 = this.chart.top+this.chart.height;
 		y2 = this.chart.top;
-		for(var i = this.x.min; i <= this.x.max; i+=this.x.inc) {
+		for(var i = this.x.gmin; i <= this.x.gmax; i += this.x.inc) {
 			x = this.getXPos((this.x.log ? Math.pow(10,i): i));
 			if(!x || x < this.chart.left || x > this.chart.left+this.chart.width) continue;
 			// As <canvas> usings sub-pixel positioning we want to shift the placement 0.5 pixels
 			x = (x-Math.round(x) > 0) ? Math.floor(x)+0.5 : Math.ceil(x)-0.5;
 			this.canvas.ctx.beginPath();
-			this.canvas.ctx.textAlign = (i==this.x.max) ? 'end' : (i==this.x.min ? 'start' : 'center');
+			this.canvas.ctx.textAlign = (i==this.x.gmax) ? 'end' : (i==this.x.gmin ? 'start' : 'center');
 			this.canvas.ctx.strokeStyle = (this.options.grid.color ? this.options.grid.color : 'rgba(0,0,0,0.5)');
 			this.canvas.ctx.fillText(addCommas((this.x.log ? Math.pow(10, i) : i)),x.toFixed(1),(y1+3).toFixed(1));
-			if(grid && i != this.x.min && i != this.x.max){
+			if(grid && i != this.x.gmin && i != this.x.gmax){
 				this.canvas.ctx.moveTo(x,y1);
 				this.canvas.ctx.lineTo(x,y2);
 				this.canvas.ctx.stroke();
@@ -731,7 +859,7 @@
 				this.canvas.ctx.strokeStyle = (s.color ? s.color : 'rgba(0,0,0,0.2)');
 				for(var j = 0; j < this.subgrid.length ; j++){
 					di = i+this.subgrid[j];
-					if(di < this.x.max){
+					if(di < this.x.gmax){
 						x = this.getXPos(Math.pow(10,di));
 						// As <canvas> usings sub-pixel positioning we want to shift the placement 0.5 pixels
 						x = (x-Math.round(x) > 0) ? Math.floor(x)+0.5 : Math.ceil(x)-0.5;
@@ -762,7 +890,9 @@
 			this.data[s].y = new Array(l);
 			for(var i = 0; i < l ; i++){
 				ii = this.getPixPos(this.data[s].data[i][0],this.data[s].data[i][1]);
-				if(typeof ii[0]=="number" && typeof ii[1]=="number" && this.data[s].hoverable) this.lookup[Math.round(ii[0])][Math.round(ii[1])] = s+":"+i;
+				x = Math.round(ii[0]);
+				y = Math.round(ii[1]);
+				if(this.data[s].hoverable && typeof ii[0]=="number" && typeof ii[1]=="number" && x < this.lookup.length && y < this.lookup[x].length && this.data[s].data[i][0] >= this.x.min && this.data[s].data[i][0] <= this.x.max && this.data[s].data[i][1] >= this.y.min && this.data[s].data[i][1] <= this.y.max) this.lookup[x][y] = s+":"+i;
 				this.data[s].x[i] = ii[0];
 				this.data[s].y[i] = ii[1];
 			}
@@ -784,7 +914,7 @@
 				this.canvas.ctx.beginPath();
 				this.canvas.ctx.lineWidth = (this.data[s].lines.lineWidth ? this.data[s].lines.lineWidth : 1);
 				for(var i = 0; i < this.data[s].x.length ; i++){
-					if(this.data[s].x[i] && this.data[s].y[i]){
+					if(this.data[s].x[i] && this.data[s].y[i] && this.data[s].data[i][0] >= this.x.min && this.data[s].data[i][0] <= this.x.max && this.data[s].data[i][1] >= this.y.min && this.data[s].data[i][1] <= this.y.max){
 						if(i == 0) this.canvas.ctx.moveTo(this.data[s].x[i],this.data[s].y[i]);
 						else this.canvas.ctx.lineTo(this.data[s].x[i],this.data[s].y[i]);
 					}
@@ -800,8 +930,7 @@
 				this.canvas.ctx.fillStyle = (this.data[s].color ? parseColour(this.data[s].color) : '#ffcc00');
 				this.canvas.ctx.lineWidth = (0.8);
 				for(var i = 0; i < this.data[s].x.length ; i++){
-					if(this.data[s].x[i] && this.data[s].y[i]){
-	
+					if(this.data[s].x[i] && this.data[s].y[i] && this.data[s].data[i][0] >= this.x.min && this.data[s].data[i][0] <= this.x.max && this.data[s].data[i][1] >= this.y.min && this.data[s].data[i][1] <= this.y.max){
 						if(this.data[s].y[i] < this.chart.top+this.chart.height){
 							this.canvas.ctx.moveTo(this.data[s].x[i],this.data[s].y[i]);
 							this.canvas.ctx.beginPath();
@@ -840,8 +969,11 @@
 	
 	// Draw everything
 	Graph.prototype.draw = function(){
+		if(this.logging) var d = new Date();
 		this.drawAxes();
 		this.drawData();
+		this.canvas.copyToClipboard()
+		if(this.logging) console.log("Total until end of draw():" + (new Date() - d) + "ms");
 	}
 
 	$.graph = function(element, data, options) {
