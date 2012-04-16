@@ -17,7 +17,7 @@
 				$(document).ready(function(){
 					// Each point in this example consists of [x,y,uncertainty] but can be [x,y] and [x,y,plus,minus]
 					series = [[1,0.999,0.022],[2,1.002,0.012],[3,0.999,0.012],[4,0.997,0.013],[5,0.999,0.03]];
-					graph = $.graph('lightcurve', {data:series,color: "#dd9901",points:{show:true,radius:1.5},lines:{show:false,lineWidth:4}}, {xaxis:{log:false,label:'t'},grid:{show:false,color:'rgb(255,0,0)',background:'rgb(255,255,255)'}});
+					graph = $.graph('lightcurve', {data:series,color: "#dd9901",points:{show:true,radius:1.5},lines:{show:false,width:4}}, {xaxis:{log:false,label:'t'},grid:{show:false,color:'rgb(255,0,0)',background:'rgb(255,255,255)'}});
 	
 				});
 			//-->
@@ -365,7 +365,7 @@
 
 
 	// Now we define the Graph class
-	// mygraph = $.graph(id, {data:series,color: "#9944ff",points:{show:false,radius:1.5},lines:{show:true,lineWidth:4}}, options);
+	// mygraph = $.graph(id, {data:series,color: "#9944ff",points:{show:false,radius:1.5},lines:{show:true,width:4}}, options);
 	// where:
 	//   id (string) is the ID of the HTML element to attach the canvas to
 	//   series (array) contains the data series e.g. series = [[x,y],[x2,y2],[x3,y3],...[xn,yn]] or an array of data series;
@@ -644,7 +644,8 @@
 			if(typeof this.data[s].css=="object") this.coordinates.css(this.data[s].css);
 			
 			// Build the hovertext output
-			var html = (typeof this.data[s].hovertext=="string") ? this.data[s].hovertext : "{{xlabel}}: {{x}}<br />{{ylabel}}: {{y}}<br />Uncertainty: {{e}}";
+			var html = (typeof this.data[s].hovertext=="string") ? this.data[s].hovertext : "{{ xlabel }}: {{ x }}<br />{{ ylabel }}: {{ y }}<br />Uncertainty: {{ err }}";
+console.log(html)
 			if(typeof this.data[s].hoverbefore=="string") html = this.data[s].hoverbefore+html;
 			if(typeof this.data[s].hoverafter=="string") html = html+this.data[s].hoverafter;
 			html = html.replace(/{{ *x *}}/g,this.data[s].data[i].x);
@@ -945,7 +946,7 @@
 			// Draw lines
 			if(this.data[s].lines.show){
 				this.canvas.ctx.beginPath();
-				this.canvas.ctx.lineWidth = (this.data[s].lines.lineWidth ? this.data[s].lines.lineWidth : 1);
+				this.canvas.ctx.lineWidth = (this.data[s].lines.width ? this.data[s].lines.width : 1);
 				for(var i = 0; i < this.data[s].x.length ; i++){
 					if(this.data[s].x[i] && this.data[s].y[i]){
 						if(this.data[s].data[i].x >= this.x.min && this.data[s].data[i].x <= this.x.max && this.data[s].data[i].y >= this.y.min && this.data[s].data[i].y <= this.y.max){
