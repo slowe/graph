@@ -373,7 +373,7 @@
 	function Graph(element, data, options){
 		// Define some variables
 		this.version = "0.1.2";
-		this.logging = false;
+		this.logging = true;//false;
 		this.start = new Date();
 		if(typeof element!="string") return;
 		this.id = element;
@@ -381,6 +381,8 @@
 		this.chart = {};
 		this.options = {};
 		this.selecting = false;
+
+		if(this.logging) var d = new Date();
 
 		// Define the drawing canvas
 		this.canvas = new Canvas({id:this.id});
@@ -448,7 +450,8 @@
 
 		// Finally, set the data and update the display
 		this.updateData(data);
-		
+
+		if(this.logging) console.log("Total:" + (new Date() - d) + "ms");
 		return this;
 	}
 	Graph.prototype.setOptions = function(options){
@@ -492,10 +495,27 @@
 
 		if(this.data.length <= 0) return false;
 		
-		this.errors = (this.options.useerrorsforrange) ? this.data[0].data[0].length - 2 : 0;
+		//this.errors = (this.options.useerrorsforrange) ? this.data[0].data[0].length - 2 : 0;
 		for(var i = 0; i < this.data.length ; i++){
 			max = this.data[i].data.length
 
+			if(this.data[0].data[0].err){
+				// Need to correct for different +/- errors
+				var errs = new Array();
+				for(var j = 0; j < max ; j++){
+					if(this.data[i].data[j].err) errs.push(this.data[i].data[j].err);
+				}
+				m = G.stddev(errs);
+				var err = (m) ? [m,m] : [0,0];
+			}else var err = [0,0];
+
+			for(var j = 0; j < max ; j++){
+				if(this.data[i].data[j].x < this.x.min) this.x.min = this.data[i].data[j].x;
+				if(this.data[i].data[j].x > this.x.max) this.x.max = this.data[i].data[j].x;
+				if(this.data[i].data[j].y-err[1] < this.y.min) this.y.min = this.data[i].data[j].y-err[1];
+				if(this.data[i].data[j].y+err[1] > this.y.max) this.y.max = this.data[i].data[j].y+err[1];
+			}
+/*
 			if(this.data[0].data[0].length - 2 > 0){
 				var errs = new Array();
 				for(var j = 0; j < max ; j++){
@@ -511,6 +531,7 @@
 				if(this.data[i].data[j][1]-errors[1] < this.y.min) this.y.min = this.data[i].data[j][1]-errors[1];
 				if(this.data[i].data[j][1]+errors[1] > this.y.max) this.y.max = this.data[i].data[j][1]+errors[1];
 			}
+*/
 		}
 		// Keep a record of the data min/max
 		this.x.datamin = this.x.min;
@@ -602,7 +623,7 @@
 			var i = d[1];
 			var twopi = 2*Math.PI;
 			var rad = (this.data[s].points.radius) ? this.data[s].points.radius : 1;
-			var ii = this.getPixPos(this.data[s].data[i][0],this.data[s].data[i][1]);
+			var ii = this.getPixPos(this.data[s].data[i].x,this.data[s].data[i].y);
 			this.canvas.ctx.beginPath();
 
 			this.canvas.ctx.lineWidth = 1.5;
@@ -630,12 +651,20 @@
 			var html = (typeof this.data[s].hovertext=="string") ? this.data[s].hovertext : "{{xlabel}}: {{x}}<br />{{ylabel}}: {{y}}<br />Uncertainty: {{e}}";
 			if(typeof this.data[s].hoverbefore=="string") html = this.data[s].hoverbefore+html;
 			if(typeof this.data[s].hoverafter=="string") html = html+this.data[s].hoverafter;
-			html = html.replace(/{{ *x *}}/,this.data[s].data[i][0]);
-			html = html.replace(/{{ *y *}}/,this.data[s].data[i][1]);
-			html = html.replace(/{{ *xlabel *}}/,(this.x.label.text ? this.x.label.text : 'x'));
-			html = html.replace(/{{ *ylabel *}}/,(this.y.label.text ? this.y.label.text : 'y'));
-			html = html.replace(/{{ *e *}}/,(this.data[s].data[i][2] ? this.data[s].data[i][2]:''));
-			html = html.replace(/{{ *title *}}/,(typeof this.data[s].hovertext=="string") ? this.data[s].title : "");
+			html = html.replace(/{{ *x *}}/g,this.data[s].data[i].x);
+			html = html.replace(/{{ *y *}}/g,this.data[s].data[i].y);
+			html = html.replace(/{{ *xlabel *}}/g,(this.x.label.text ? this.x.label.text : 'x'));
+			html = html.replace(/{{ *ylabel *}}/g,(this.y.label.text ? this.y.label.text : 'y'));
+			html = html.replace(/{{ *err *}}/g,(this.data[s].data[i].err ? this.data[s].data[i].err:0));
+			html = html.replace(/{{ *title *}}/g,(typeof this.data[s].hovertext=="string") ? this.data[s].title : "");
+			while(html.match(/{{.*}}/)){
+				var a = html.indexOf("{{")+2;
+				var b = html.indexOf("}}");
+				var pattern = html.substring(a,b);
+				pattern = pattern.replace(/^\s+|\s+$/g,"");	// trim
+				html = html.replace(new RegExp("{{ *"+pattern+" *}}","g"),(typeof this.data[s].data[i][pattern]=="string") ? this.data[s].data[i][pattern] : "");
+			}
+			
 
 			this.coordinates.html(html);
 			var x = ii[0]-this.coordinates.outerWidth()-1;
@@ -893,10 +922,10 @@
 			this.data[s].x = new Array(l);
 			this.data[s].y = new Array(l);
 			for(var i = 0; i < l ; i++){
-				ii = this.getPixPos(this.data[s].data[i][0],this.data[s].data[i][1]);
+				ii = this.getPixPos(this.data[s].data[i].x,this.data[s].data[i].y);
 				x = Math.round(ii[0]);
 				y = Math.round(ii[1]);
-				if(this.data[s].hoverable && typeof ii[0]=="number" && typeof ii[1]=="number" && x < this.lookup.length && y < this.lookup[x].length && this.data[s].data[i][0] >= this.x.min && this.data[s].data[i][0] <= this.x.max && this.data[s].data[i][1] >= this.y.min && this.data[s].data[i][1] <= this.y.max) this.lookup[x][y] = s+":"+i;
+				if(this.data[s].hoverable && typeof ii[0]=="number" && typeof ii[1]=="number" && x < this.lookup.length && y < this.lookup[x].length && this.data[s].data[i].x >= this.x.min && this.data[s].data[i].x <= this.x.max && this.data[s].data[i].y >= this.y.min && this.data[s].data[i].y <= this.y.max) this.lookup[x][y] = s+":"+i;
 				this.data[s].x[i] = ii[0];
 				this.data[s].y[i] = ii[1];
 			}
@@ -919,7 +948,7 @@
 				this.canvas.ctx.lineWidth = (this.data[s].lines.lineWidth ? this.data[s].lines.lineWidth : 1);
 				for(var i = 0; i < this.data[s].x.length ; i++){
 					if(this.data[s].x[i] && this.data[s].y[i]){
-						if(this.data[s].data[i][0] >= this.x.min && this.data[s].data[i][0] <= this.x.max && this.data[s].data[i][1] >= this.y.min && this.data[s].data[i][1] <= this.y.max){
+						if(this.data[s].data[i].x >= this.x.min && this.data[s].data[i].x <= this.x.max && this.data[s].data[i].y >= this.y.min && this.data[s].data[i].y <= this.y.max){
 							if(i == 0) this.canvas.ctx.moveTo(this.data[s].x[i],this.data[s].y[i]);
 							else this.canvas.ctx.lineTo(this.data[s].x[i],this.data[s].y[i]);
 						}else{
@@ -938,21 +967,20 @@
 				this.canvas.ctx.fillStyle = (this.data[s].color ? parseColour(this.data[s].color) : '#ffcc00');
 				this.canvas.ctx.lineWidth = (0.8);
 				for(var i = 0; i < this.data[s].x.length ; i++){
-					if(this.data[s].x[i] && this.data[s].y[i] && this.data[s].data[i][0] >= this.x.min && this.data[s].data[i][0] <= this.x.max && this.data[s].data[i][1] >= this.y.min && this.data[s].data[i][1] <= this.y.max){
+					if(this.data[s].x[i] && this.data[s].y[i] && this.data[s].data[i].x >= this.x.min && this.data[s].data[i].x <= this.x.max && this.data[s].data[i].y >= this.y.min && this.data[s].data[i].y <= this.y.max){
 						if(this.data[s].y[i] < this.chart.top+this.chart.height){
 							this.canvas.ctx.moveTo(this.data[s].x[i],this.data[s].y[i]);
 							this.canvas.ctx.beginPath();
 							this.canvas.ctx.arc(this.data[s].x[i],this.data[s].y[i],rad,0,twopi,false);
 							this.canvas.ctx.stroke();
-							
-							e = this.data[s].data[0].length - 2;
+							e = (this.data[s].data[i].err) ? (this.data[s].data[i].err.length==2 ? 2 : 1) : 0;
 							if(e > 0){
 								if(e == 2){
-									hi = this.getYPos(this.data[s].data[i][1]+this.data[s].data[i][2]);
-									lo = this.getYPos(this.data[s].data[i][1]-this.data[s].data[i][3]);
+									hi = this.getYPos(this.data[s].data[i].y+this.data[s].data[i].err[0]);
+									lo = this.getYPos(this.data[s].data[i].y-this.data[s].data[i].err[1]);
 								}else{
-									hi = this.getYPos(this.data[s].data[i][1]+this.data[s].data[i][2]);
-									lo = this.getYPos(this.data[s].data[i][1]-this.data[s].data[i][2]);
+									hi = this.getYPos(this.data[s].data[i].y+this.data[s].data[i].err);
+									lo = this.getYPos(this.data[s].data[i].y-this.data[s].data[i].err);
 								}
 								
 								if(hi && lo){
@@ -977,11 +1005,9 @@
 	
 	// Draw everything
 	Graph.prototype.draw = function(){
-		if(this.logging) var d = new Date();
 		this.drawAxes();
 		this.drawData();
 		this.canvas.copyToClipboard()
-		if(this.logging) console.log("Total until end of draw():" + (new Date() - d) + "ms");
 	}
 
 	$.graph = function(element, data, options) {
