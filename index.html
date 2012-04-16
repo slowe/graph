@@ -119,7 +119,7 @@
 		
 				model = new Array(obs.model.xval.length);
 				for(var i=0 ; i<obs.model.xval.length ; i++){
-					model[i] = ([obs.model.xval[i],obs.model.yval[i]])
+					model[i] = ({x:obs.model.xval[i],y:obs.model.yval[i]})
 				}
 				var dataset = [];
 				for(var d=0 ; d < data.length ; d++){
