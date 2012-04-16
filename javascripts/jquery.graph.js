@@ -373,7 +373,7 @@
 	function Graph(element, data, options){
 		// Define some variables
 		this.version = "0.1.2";
-		this.logging = true;//false;
+		this.logging = false;
 		this.start = new Date();
 		if(typeof element!="string") return;
 		this.id = element;
@@ -401,6 +401,7 @@
 			return true;
 		}).bind("mousedown",{me:this},function(ev){
 			var g = ev.data.me;
+			if(ev.event.which!=1) return;	// Only zoom on left click
 			if(g.within(ev.event.layerX,ev.event.layerY)){
 				g.selectfrom = [ev.event.layerX,ev.event.layerY];
 				g.selectto = g.selectfrom;
@@ -515,23 +516,6 @@
 				if(this.data[i].data[j].y-err[1] < this.y.min) this.y.min = this.data[i].data[j].y-err[1];
 				if(this.data[i].data[j].y+err[1] > this.y.max) this.y.max = this.data[i].data[j].y+err[1];
 			}
-/*
-			if(this.data[0].data[0].length - 2 > 0){
-				var errs = new Array();
-				for(var j = 0; j < max ; j++){
-					if(this.data[i].data[j][2]) errs.push(this.data[i].data[j][2]);
-				}
-				m = G.stddev(errs);
-				errors = (m) ? [m,m] : [0,0];
-			}else errors = [0,0];
-
-			for(var j = 0; j < max ; j++){
-				if(this.data[i].data[j][0]-errors[0] < this.x.min) this.x.min = this.data[i].data[j][0]-errors[0];
-				if(this.data[i].data[j][0]+errors[0] > this.x.max) this.x.max = this.data[i].data[j][0]+errors[0];
-				if(this.data[i].data[j][1]-errors[1] < this.y.min) this.y.min = this.data[i].data[j][1]-errors[1];
-				if(this.data[i].data[j][1]+errors[1] > this.y.max) this.y.max = this.data[i].data[j][1]+errors[1];
-			}
-*/
 		}
 		// Keep a record of the data min/max
 		this.x.datamin = this.x.min;
@@ -565,22 +549,34 @@
 		this.draw();
 	}
 	
-	Graph.prototype.getYOff = function(y){
-		if(this.y.log) y = G.log10(y);
-		return this.chart.height*y/(this.y.range);
-	}
-	
 	// For an input data value find the y-pixel location
 	Graph.prototype.getYPos = function(y){
-		if(this.y.log) y = G.log10(y);
-		return (y < this.y.min || y > this.y.max) ? (y > this.y.max ? this.chart.top-1 : this.chart.top+this.chart.height+1) : this.options.height-(this.chart.bottom + this.chart.height*((y-this.y.min)/(this.y.range)));
+		if(this.y.log){
+			y = G.log10(y);
+			var min = this.y.gmin;
+			var max = this.y.gmax;
+			var ran = this.y.grange;
+		}else{
+			var min = this.y.min;
+			var max = this.y.max;
+			var ran = this.y.range;
+		}
+		return (y < min || y > max) ? (y > max ? this.chart.top-1 : this.chart.top+this.chart.height+1) : this.options.height-(this.chart.bottom + this.chart.height*((y-min)/ran));
 	}
 	
 	// For an input data value find the x-pixel location
 	Graph.prototype.getXPos = function(x){
-		if(this.x.log) x = G.log10(x);
-		//if(this.x.fit) return (x < this.x.datamin || x > this.x.datamax) ? (x < this.x.datamin ? this.chart.left-1 : this.chart.left+this.chart.width+1) : (this.x.dir=="reverse" ? this.chart.left + this.chart.width*(Math.abs(this.x.datamax-x)/(this.x.range)) : this.chart.left + this.chart.width*(Math.abs(x-this.x.datamin)/(this.x.datarange)));
-		return (x < this.x.min || x > this.x.max) ? (x < this.x.min ? this.chart.left-1 : this.chart.left+this.chart.width+1) : (this.x.dir=="reverse" ? this.chart.left + this.chart.width*(Math.abs(this.x.max-x)/(this.x.range)) : this.chart.left + this.chart.width*(Math.abs(x-this.x.min)/(this.x.range)));
+		if(this.x.log){
+			x = G.log10(x);
+			var min = this.x.gmin;
+			var max = this.x.gmax;
+			var ran = this.x.grange;
+		}else{
+			var min = this.x.min;
+			var max = this.x.max;
+			var ran = this.x.range;
+		}
+		return (x < min || x > max) ? (x < min ? this.chart.left-1 : this.chart.left+this.chart.width+1) : (this.x.dir=="reverse" ? this.chart.left + this.chart.width*(Math.abs(max-x)/(ran)) : this.chart.left + this.chart.width*(Math.abs(x-min)/ran));
 	}
 	
 	// For an input data value find the pixel locations
@@ -697,18 +693,20 @@
 
 		// Sort out what to do for log scales
 		if(this[axis].log){
-
 			// Adjust the low and high values for log scale
 			this[axis].gmax = Math.ceil(G.log10(this[axis].max));
 			this[axis].gmin = (this[axis].min <= 0) ? this[axis].gmax-2 : Math.floor(G.log10(this[axis].min));
-			this[axis].inc = 1;
-			return true;
 
+			this[axis].inc = 1;
+			this[axis].range = this[axis].max-this[axis].min;
+			this[axis].grange = this[axis].gmax-this[axis].gmin;
+			return true;
 		}
 
 		// If we have zero range we need to expand it
 		if(this[axis].range < 0){
 			this[axis].inc = 0.0;
+			this[axis].grange = 0.0;
 			return true;
 		}else if(this[axis].range == 0){
 			this[axis].gmin = Math.ceil(this[axis].max)-1;
@@ -717,6 +715,7 @@
 			this[axis].max = this[axis].gmax;
 			this[axis].inc = 1.0;
 			this[axis].range = this[axis].max-this[axis].min;
+			this[axis].grange = this[axis].gmax-this[axis].gmin;
 			return true;
 		}
 
@@ -745,6 +744,7 @@
 		this[axis].gmin = t_min;
 		this[axis].gmax = t_max;
 		this[axis].inc = t_inc;
+		this[axis].grange = this[axis].gmax-this[axis].gmin;
 
 		return true;
 	}
@@ -816,7 +816,6 @@
 			}
 		}
 
-		this.canvas.ctx.font = '11px';
 		this.canvas.ctx.lineWidth = (this.options.grid.width ? this.options.grid.width : 0.5);
 
 		// Draw y-axis grid and labels
@@ -826,13 +825,14 @@
 		// Calculate the number of decimal places for the increment - helps with rounding errors
 		prec = ""+this.y.inc;
 		prec = prec.length-prec.indexOf('.')-1;
+		fshalf = Math.ceil(this.chart.fontsize/2);
 		for(var i = this.y.gmin; i <= this.y.gmax; i += this.y.inc) {
-			y = this.getYPos((this.y.log ? Math.pow(10,i): i));
+			y = this.getYPos((this.y.log ? Math.pow(10, i) : i));
 			if(!y || y < this.chart.top || y > this.chart.top+this.chart.height) continue;
 			// As <canvas> usings sub-pixel positioning we want to shift the placement 0.5 pixels
 			y = (y-Math.round(y) > 0) ? Math.floor(y)+0.5 : Math.ceil(y)-0.5;
-			j = i.toFixed(prec);
-			a = (j==this.y.max) ? 6 : (j==this.y.min ? -6 : 0);
+			j = (this.y.log) ? i : i.toFixed(prec);
+			a = (j==this.y.gmax) ? fshalf : (j==this.y.gmin ? -fshalf : 0);
 			this.canvas.ctx.beginPath();
 			this.canvas.ctx.strokeStyle = (this.options.grid.color ? this.options.grid.color : 'rgba(0,0,0,0.5)');
 			this.canvas.ctx.fillText((this.y.log ? Math.pow(10, j) : j),x1-3,(y+a).toFixed(1));
@@ -875,7 +875,7 @@
 			if(!x || x < this.chart.left || x > this.chart.left+this.chart.width) continue;
 			// As <canvas> usings sub-pixel positioning we want to shift the placement 0.5 pixels
 			x = (x-Math.round(x) > 0) ? Math.floor(x)+0.5 : Math.ceil(x)-0.5;
-			j = i.toFixed(prec);
+			j = (this.y.log) ? i : i.toFixed(prec);
 			this.canvas.ctx.beginPath();
 			this.canvas.ctx.textAlign = (j==this.x.gmax) ? 'end' : (j==this.x.gmin ? 'start' : 'center');
 			this.canvas.ctx.strokeStyle = (this.options.grid.color ? this.options.grid.color : 'rgba(0,0,0,0.5)');
