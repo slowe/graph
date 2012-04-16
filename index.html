@@ -136,7 +136,7 @@
 	
 		n = 200;
 		series = new Array(n);
-		for(var i=0 ; i<n ; i++) series[i] = {x:14+i,y:Math.pow(i,2/3)+2});
+		for(var i=0 ; i<n ; i++) series[i] = {x:14+i,y:Math.pow(i,2/3)+2};
 		options.xaxis = {log: false, label:''};
 		options.yaxis = {log: true, label:'Power'};
 		graph2 = $.graph('lightcurve2', {data:series,color: "#9944ff",points:{show:false,radius:1.5},lines:{show:true,lineWidth:4}}, options);
