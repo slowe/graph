@@ -274,7 +274,7 @@
 	//   .bind("resize",{me:this},function(e){ console.log(e.data.me); });
 	Canvas.prototype.bind = function(ev,e,fn){
 		if(typeof ev!="string") return this;
-		if(typeof fn=="undefined"){
+		if(is(fn,"undefined")){
 			fn = e;
 			e = {};
 		}else{
@@ -381,6 +381,7 @@
 		this.chart = {};
 		this.options = {};
 		this.selecting = false;
+		this.events = [];
 
 		if(this.logging) var d = new Date();
 
@@ -391,26 +392,47 @@
 		this.canvas.bind("resize",{me:this},function(ev){
 			// Attach an event to deal with resizing the <canvas>
 			if(ev.data.me.logging) var d = new Date();
-			ev.data.me.setOptions();
-			ev.data.me.calculateData();
-			ev.data.me.draw();
+			ev.data.me.setOptions().calculateData().draw().trigger("resize",{event:ev.event});
 			if(ev.data.me.logging) console.log("Total until end of resize:" + (new Date() - d) + "ms");
 		}).bind("mousemove",{me:this},function(ev){
+			var g = ev.data.me;	// The graph object
 			// Attach hover event
-			ev.data.me.highlight(ev.data.me.dataAtMousePosition(ev.event.layerX,ev.event.layerY));
+			if(!g.selecting){
+				d = g.dataAtMousePosition(ev.event.layerX,ev.event.layerY);
+				g.highlight(d);
+				if(typeof d!="undefined"){
+					s = d[0];
+					i = d[1];
+					d = g.data[s];
+					g.trigger("hoverpoint",{event:ev.event,point:d.data[i],xpix:ev.event.layerX,ypix:ii[1],title:d.title,color:d.color});
+				}
+			}
 			return true;
 		}).bind("mousedown",{me:this},function(ev){
-			var g = ev.data.me;
+			var g = ev.data.me;	// The graph object
 			if(ev.event.which!=1) return;	// Only zoom on left click
-			if(g.within(ev.event.layerX,ev.event.layerY)){
-				g.selectfrom = [ev.event.layerX,ev.event.layerY];
-				g.selectto = g.selectfrom;
-				g.selecting = true;
+			// Check if there is a data point at the position that the user clicked.
+			d = g.dataAtMousePosition(ev.event.layerX,ev.event.layerY);
+			if(is(d,"undefined")){
+				// No data so we'll start the zoom selection
+				if(g.within(ev.event.layerX,ev.event.layerY)){
+					g.selectfrom = [ev.event.layerX,ev.event.layerY];
+					g.selectto = g.selectfrom;
+					g.selecting = true;
+				}
+				// Keep a copy of the current state of the canvas
+				g.canvas.copyToClipboard();
+			}else{
+				// This is a data point so we'll trigger the clickpoint event
+				s = parseInt(d[0]);
+				i = parseInt(d[1]);
+				d = g.data[s];
+				ii = g.getPixPos(ev.event.layerX,ev.event.layerY);
+				g.trigger("clickpoint",{event:ev.event,series:s,n:i,point:d.data[i],xpix:ev.event.layerX,ypix:ii[1],title:d.title,color:d.color});
 			}
-			g.canvas.copyToClipboard();
 			return true;
 		}).bind("mousemove",{me:this},function(ev){
-			var g = ev.data.me;
+			var g = ev.data.me;	 // The graph object
 			if(g.selecting){
 				if(g.within(ev.event.layerX,ev.event.layerY)){
 					g.selectto = [ev.event.layerX,ev.event.layerY];
@@ -426,7 +448,7 @@
 			}
 			return true;
 		}).bind("mouseup",{me:this},function(ev){
-			var g = ev.data.me;
+			var g = ev.data.me;	 // The graph object
 			if(g.selecting){
 				var c1 = g.pixel2data(g.selectfrom[0],g.selectfrom[1]);
 				var c2 = g.pixel2data(g.selectto[0],g.selectto[1]);
@@ -455,6 +477,33 @@
 		if(this.logging) console.log("Total:" + (new Date() - d) + "ms");
 		return this;
 	}
+	// Attach a handler to an event for the Graph object in a style similar to that used by jQuery
+	//   .bind(eventType[,eventData],handler(eventObject));
+	//   .bind("resize",function(e){ console.log(e); });
+	//   .bind("resize",{me:this},function(e){ console.log(e.data.me); });
+	Graph.prototype.bind = function(ev,e,fn){
+		if(typeof ev!="string") return this;
+		if(typeof fn=="undefined"){ fn = e; e = {}; }
+		else{ e = {data:e} }
+		if(typeof e!="object" || typeof fn!="function") return this;
+		if(this.events[ev]) this.events[ev].push({e:e,fn:fn});
+		else this.events[ev] = [{e:e,fn:fn}];
+		return this;
+	}
+	// Trigger a defined event with arguments. This is for internal-use to be 
+	// sure to include the correct arguments for a particular event
+	Graph.prototype.trigger = function(ev,args){
+		if(typeof ev != "string") return;
+		if(typeof args != "object") args = {};
+		var o = [];
+		if(typeof this.events[ev]=="object"){
+			for(var i = 0 ; i < this.events[ev].length ; i++){
+				var e = G.extend(this.events[ev][i].e,args);
+				if(typeof this.events[ev][i].fn == "function") o.push(this.events[ev][i].fn.call(this,e))
+			}
+		}
+		if(o.length > 0) return o;
+	}
 	Graph.prototype.setOptions = function(options){
 		options = options || {};
 		if(typeof this.options!="object") this.options = {};
@@ -476,6 +525,7 @@
 		if(typeof this.options.yaxis.fit!="boolean") this.options.yaxis.fit = false;
 		if(typeof this.options.xaxis.log!="boolean") this.options.xaxis.log = false;
 		if(typeof this.options.yaxis.log!="boolean") this.options.yaxis.log = false;
+		return this;
 	}
 	Graph.prototype.updateData = function(data) {
 		this.data = this.data = (data.length > 1) ? data : [data];
@@ -494,7 +544,7 @@
 		this.x = { min: 1e32, max: -1e32, log: this.options.xaxis.log, label:{text:this.options.xaxis.label}, fit:this.options.xaxis.fit };
 		this.y = { min: 1e32, max: -1e32, log: this.options.yaxis.log, label:{text:this.options.yaxis.label}, fit:this.options.yaxis.fit };
 
-		if(this.data.length <= 0) return false;
+		if(this.data.length <= 0) return this;
 		
 		//this.errors = (this.options.useerrorsforrange) ? this.data[0].data[0].length - 2 : 0;
 		for(var i = 0; i < this.data.length ; i++){
@@ -516,6 +566,7 @@
 				if(this.data[i].data[j].y-err[1] < this.y.min) this.y.min = this.data[i].data[j].y-err[1];
 				if(this.data[i].data[j].y+err[1] > this.y.max) this.y.max = this.data[i].data[j].y+err[1];
 			}
+			if(typeof this.data[i].hover!="object") this.data[i].hover = {};
 		}
 		// Keep a record of the data min/max
 		this.x.datamin = this.x.min;
@@ -526,7 +577,7 @@
 		this.y.datarange = this.y.max-this.y.min;
 		this.defineAxis("x");
 		this.defineAxis("y");
-		return true;
+		return this;
 	}
 
 	Graph.prototype.zoom = function(x1,x2,y1,y2){
@@ -617,13 +668,14 @@
 			
 			var s = d[0];
 			var i = d[1];
+			var data = this.data[s];
 			var twopi = 2*Math.PI;
-			var rad = (this.data[s].points.radius) ? this.data[s].points.radius : 1;
-			var ii = this.getPixPos(this.data[s].data[i].x,this.data[s].data[i].y);
+			var rad = (data.points.radius) ? data.points.radius : 1;
+			var ii = this.getPixPos(data.data[i].x,data.data[i].y);
 			this.canvas.ctx.beginPath();
 
 			this.canvas.ctx.lineWidth = 1.5;
-			this.canvas.ctx.strokeStyle = (this.data[s].color ? parseColour(this.data[s].color) : '#ffcc00');
+			this.canvas.ctx.strokeStyle = (data.color ? parseColour(data.color) : '#ffcc00');
 			this.canvas.ctx.fillStyle = 'rgba(255,255,255,0.3)';
 			this.canvas.ctx.arc(ii[0],ii[1],rad*6,0,twopi,false);
 			this.canvas.ctx.fill();
@@ -632,7 +684,7 @@
 
 			this.canvas.ctx.beginPath();
 			this.canvas.ctx.arc(ii[0],ii[1],rad,0,twopi,false);
-			this.canvas.ctx.strokeStyle = (this.data[s].color ? parseColour(this.data[s].color) : '#ffcc00');
+			this.canvas.ctx.strokeStyle = (data.color ? parseColour(data.color) : '#ffcc00');
 			this.canvas.ctx.stroke();
 			this.canvas.ctx.closePath();
 			
@@ -641,25 +693,32 @@
 				this.coordinates = this.canvas.container.find('.coordinates');
 			}
 			this.coordinates.show();
-			if(typeof this.data[s].css=="object") this.coordinates.css(this.data[s].css);
+			if(typeof data.css=="object") this.coordinates.css(data.css);
 			
 			// Build the hovertext output
-			var html = (typeof this.data[s].hovertext=="string") ? this.data[s].hovertext : "{{ xlabel }}: {{ x }}<br />{{ ylabel }}: {{ y }}<br />Uncertainty: {{ err }}";
-console.log(html)
-			if(typeof this.data[s].hoverbefore=="string") html = this.data[s].hoverbefore+html;
-			if(typeof this.data[s].hoverafter=="string") html = html+this.data[s].hoverafter;
-			html = html.replace(/{{ *x *}}/g,this.data[s].data[i].x);
-			html = html.replace(/{{ *y *}}/g,this.data[s].data[i].y);
-			html = html.replace(/{{ *xlabel *}}/g,(this.x.label.text ? this.x.label.text : 'x'));
-			html = html.replace(/{{ *ylabel *}}/g,(this.y.label.text ? this.y.label.text : 'y'));
-			html = html.replace(/{{ *err *}}/g,(this.data[s].data[i].err ? this.data[s].data[i].err:0));
-			html = html.replace(/{{ *title *}}/g,(typeof this.data[s].hovertext=="string") ? this.data[s].title : "");
+			val = {
+				title: (data.title) ? data.title : "", 
+				xlabel: (this.x.label.text ? this.x.label.text : 'x'),
+				ylabel: (this.y.label.text ? this.y.label.text : 'y'),
+				data: data.data[i]
+			}
+			txt = is(data.hover.text,"function") ? data.hover.text.call(this,val) : "";
+			if(typeof txt!="string") txt = "{{ xlabel }}: {{ x }}<br />{{ ylabel }}: {{ y }}<br />Uncertainty: {{ err }}";
+			var html = (typeof data.hover.text=="string") ? data.hover.text : txt;
+			if(typeof data.hover.before=="string") html = data.hover.before+html;
+			if(typeof data.hover.after=="string") html = html+data.hover.after;
+			html = html.replace(/{{ *x *}}/g,val.data.x);
+			html = html.replace(/{{ *y *}}/g,val.data.y);
+			html = html.replace(/{{ *xlabel *}}/g,val.xlabel);
+			html = html.replace(/{{ *ylabel *}}/g,val.ylabel);
+			html = html.replace(/{{ *err *}}/g,(val.data.err ? val.data.err : 0));
+			html = html.replace(/{{ *title *}}/g,val.title);
 			while(html.match(/{{.*}}/)){
 				var a = html.indexOf("{{")+2;
 				var b = html.indexOf("}}");
 				var pattern = html.substring(a,b);
 				pattern = pattern.replace(/^\s+|\s+$/g,"");	// trim
-				html = html.replace(new RegExp("{{ *"+pattern+" *}}","g"),(typeof this.data[s].data[i][pattern]=="string") ? this.data[s].data[i][pattern] : "");
+				html = html.replace(new RegExp("{{ *"+pattern+" *}}","g"),(typeof val.data[pattern]=="string") ? val.data[pattern] : "");
 			}
 			
 
@@ -931,6 +990,7 @@ console.log(html)
 				this.data[s].y[i] = ii[1];
 			}
 		}
+		return this;
 	}
 
 	// Draw the data onto the graph
@@ -1009,6 +1069,7 @@ console.log(html)
 		this.drawAxes();
 		this.drawData();
 		this.canvas.copyToClipboard()
+		return this;
 	}
 
 	$.graph = function(element, data, options) {
