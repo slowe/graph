@@ -163,7 +163,12 @@
 		}, {xaxis:{log:false,label:'t'},grid:{show:false,background:'rgb(255,255,255)'}});
 
 		graph4 = $.graph('lightcurve4', {data:series2,color: "#44bb44",points:{show:true,radius:1.5},lines:{show:true,width:2},hoverable:true}, {xaxis:{log:false,label:'t'},grid:{show:true,color:'rgb(255,0,0)'}});
-	
+
+		graph5 = $.graph('lightcurve5', {data:series2,color: "#44bb44",points:{show:true,radius:1.5},lines:{show:true,width:2},hoverable:true}, {xaxis:{log:false,label:'t'},grid:{show:true,color:'rgb(255,0,0)'}});
+		graph5.addLine({y:1.0,width:4,color:'rgba(0,0,0,0.6)'}).draw();
+		
+		graph6 = $.graph('lightcurve6', {data:series2,color: "#44bb44",points:{show:true,radius:1.5},lines:{show:true,width:2},hoverable:true}, {xaxis:{log:false,label:'t'},grid:{show:true,color:'rgb(255,0,0)'}});
+		graph6.addLine({x:35,width:2,color:'rgb(255,0,0)'}).addLine({x:77,width:2,color:'rgb(255,0,0)'}).draw();
 	});
 	</script>
   </head>
@@ -176,7 +181,7 @@
 
           <h1 id="project_title">Graph</h1>
           <h2 id="project_tagline">An HTML5 x-y graph library</h2>
-          <p style="float:left;color:white;color:rgba(255,255,255,0.5);margin-top:-1em;">Last updated: 11 April 2012</p>
+          <p style="float:left;color:white;color:rgba(255,255,255,0.5);margin-top:-1em;">Last updated: 11 May 2012</p>
 
           <section id="downloads">
             <a class="zip_download_link" href="https://github.com/slowe/graph/zipball/master">Download this project as a .zip file</a>
@@ -342,6 +347,39 @@ graph4 = $.graph('lightcurve4', {
 	xaxis: { log: false, label: 't' },
 	grid: { show: true, color:'rgb(255,0,0)' }
 });</code></pre>
+
+		<h4>Example 5</h4>
+		<div id="lightcurve5" style="height:350px;margin-top:16px;"></div>
+		<pre class="prettyprint lang-js"><code>series2 = [{x:1,y:0.999,err:0.022},{x:2,y:1.002,err:0.012}...];
+
+graph5 = $.graph('lightcurve5', {
+	data: series2,
+	color: "#44bb44",
+	points: { show: true, radius: 1.5 },
+	lines: { show: true, width: 2 },
+	hoverable: true
+},{
+	xaxis: { log: false, label: 't' },
+	grid: { show: true, color:'rgb(255,0,0)' }
+});
+graph5.addLine({y:1.0,width:4,color:'rgba(0,0,0,0.6)'}).draw();</code></pre>
+
+		<h4>Example 6</h4>
+		<div id="lightcurve6" style="height:350px;margin-top:16px;"></div>
+		<pre class="prettyprint lang-js"><code>series2 = [{x:1,y:0.999,err:0.022},{x:2,y:1.002,err:0.012}...];
+
+graph6 = $.graph('lightcurve6', {
+	data: series2,
+	color: "#44bb44",
+	points: { show: true, radius: 1.5 },
+	lines: { show: true, width: 2 },
+	hoverable: true
+},{
+	xaxis: { log: false, label: 't' },
+	grid: { show: true, color:'rgb(255,0,0)' }
+});
+graph6.addLine({x:35,width:2,color:'rgb(255,0,0)'});
+graph6.addLine({x:77,width:2,color:'rgb(255,0,0)'}).draw();</code></pre>
 
 		<h3>Author</h3>
 		<p>Stuart Lowe works for the <a href="http://lcogt.net/">Las Cumbres Observatory Global Telescope</a>. LCOGT is a private operating foundation, building a global network of telescopes for professional research and citizen investigations.</p>

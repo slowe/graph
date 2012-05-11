@@ -17,7 +17,15 @@
 				$(document).ready(function(){
 					// Each point in this example consists of [x,y,uncertainty] but can be [x,y] and [x,y,plus,minus]
 					series = [[1,0.999,0.022],[2,1.002,0.012],[3,0.999,0.012],[4,0.997,0.013],[5,0.999,0.03]];
-					graph = $.graph('lightcurve', {data:series,color: "#dd9901",points:{show:true,radius:1.5},lines:{show:false,width:4}}, {xaxis:{log:false,label:'t'},grid:{show:false,color:'rgb(255,0,0)',background:'rgb(255,255,255)'}});
+					graph = $.graph('lightcurve', {
+						data: series,
+						color: "#dd9901",
+						points: {show:true,radius:1.5},
+						lines:{show:false,width:4}
+					}, {
+						xaxis: {log:false,label:'t'},
+						grid: {show:false,color:'rgb(255,0,0)',background:'rgb(255,255,255)'}
+					});
 	
 				});
 			//-->
@@ -382,6 +390,7 @@
 		this.options = {};
 		this.selecting = false;
 		this.events = [];
+		this.lines = [];
 
 		if(this.logging) var d = new Date();
 
@@ -464,6 +473,7 @@
 			}
 			g.selecting = false;
 			g.canvas.pasteFromClipboard();
+			g.drawOverlay();
 			return true;
 		})
 
@@ -528,7 +538,7 @@
 		return this;
 	}
 	Graph.prototype.updateData = function(data) {
-		this.data = this.data = (data.length > 1) ? data : [data];
+		this.data = (data.length > 1) ? data : [data];
 		this.getGraphRange();
 		this.calculateData();
 		this.clear();
@@ -665,7 +675,8 @@
 		if(this.lookup && d && d.length == 2){
 			// We want to put the saved version of the canvas back
 			this.canvas.pasteFromClipboard();
-			
+			this.drawOverlay();
+
 			var s = d[0];
 			var i = d[1];
 			var data = this.data[s];
@@ -703,7 +714,7 @@
 				data: data.data[i]
 			}
 			txt = is(data.hover.text,"function") ? data.hover.text.call(this,val) : "";
-			if(typeof txt!="string") txt = "{{ xlabel }}: {{ x }}<br />{{ ylabel }}: {{ y }}<br />Uncertainty: {{ err }}";
+			if(typeof txt!="string" || txt=="") txt = "{{ xlabel }}: {{ x }}<br />{{ ylabel }}: {{ y }}<br />Uncertainty: {{ err }}";
 			var html = (typeof data.hover.text=="string") ? data.hover.text : txt;
 			if(typeof data.hover.before=="string") html = data.hover.before+html;
 			if(typeof data.hover.after=="string") html = html+data.hover.after;
@@ -735,6 +746,7 @@
 				//this.clear();
 				//this.draw();
 				this.canvas.pasteFromClipboard();
+				this.drawOverlay();
 			}
 		}
 	}
@@ -830,6 +842,7 @@
 		this.chart.bottom = (this.x.label.text) ? this.chart.padding+Math.round(4.5*this.chart.fontsize/2)-b : this.chart.padding+Math.round(2.5*this.chart.fontsize/2)+b;
 		this.chart.width = this.canvas.wide-this.chart.right-this.chart.left;
 		this.chart.height = this.canvas.tall-this.chart.bottom-this.chart.top;
+		return this;
 	}
 	
 	// Draw the axes and grid lines for the graph
@@ -964,6 +977,7 @@
 				this.canvas.ctx.closePath();
 			}
 		}
+		return this;
 	}
 
 	// Function to calculate the x,y coordinates for each data point. 
@@ -1057,18 +1071,62 @@
 				}
 			}
 		}
+		return this;
 	}
-	
+	Graph.prototype.addLine = function(opt){
+		// Should sanitize the input here
+		this.lines.push(opt);
+		return this;
+	}
+	Graph.prototype.removeLines = function(opt){
+		this.lines = [];
+		return this;
+	}
+	Graph.prototype.drawLines = function(){
+		// Loop over each line
+		for(var l = 0; l < this.lines.length ; l++){
+			if(this.lines[l].x){
+				x = (this.lines[l].x.length == 2) ? this.lines[l].x : [this.lines[l].x,this.lines[l].x];
+				x1 = this.getXPos((this.x.log ? Math.pow(10,x[0]): x[0]));
+				x2 = this.getXPos((this.x.log ? Math.pow(10,x[1]): x[1]));
+			}else{
+				x1 = this.chart.left;
+				x2 = this.chart.left+this.chart.width;
+			}
+			if(this.lines[l].y){
+				y = (this.lines[l].y.length == 2) ? this.lines[l].y : [this.lines[l].y,this.lines[l].y];
+				y1 = this.getYPos((this.y.log ? Math.pow(10,y[0]): y[0]));
+				y2 = this.getYPos((this.y.log ? Math.pow(10,y[1]): y[1]));
+			}else{
+				y1 = this.chart.top+this.chart.height;
+				y2 = this.chart.top;
+			}
+			this.canvas.ctx.beginPath();
+			this.canvas.ctx.strokeStyle = (typeof this.lines[l].color=="string" ? this.lines[l].color : 'black');
+			this.canvas.ctx.lineWidth = (typeof this.lines[l].width=="number" ? this.lines[l].width : 1);
+			this.canvas.ctx.moveTo(x1,y1);
+			this.canvas.ctx.lineTo(x2,y2);
+			this.canvas.ctx.stroke();
+			this.canvas.ctx.closePath();
+		}
+		return this;
+	}
 	// Clear the canvas
 	Graph.prototype.clear = function(){
 		this.canvas.ctx.clearRect(0,0,this.canvas.wide,this.canvas.tall);
+		return this;
 	}
 	
 	// Draw everything
 	Graph.prototype.draw = function(){
 		this.drawAxes();
 		this.drawData();
-		this.canvas.copyToClipboard()
+		this.canvas.copyToClipboard();
+		this.drawOverlay();
+		return this;
+	}
+	Graph.prototype.drawOverlay = function(){
+		this.drawLines();
 		return this;
 	}
 
