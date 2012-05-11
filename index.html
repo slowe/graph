@@ -123,7 +123,7 @@
 				}
 				var dataset = [];
 				for(var d=0 ; d < data.length ; d++){
-					dataset.push({ data: data[d], points :{show:true, radius: 1.5}, title:'Series '+(obs.observatories[d].obs_id), color: obs.observatories[d].html_col, lines: { show: false }, clickable: true, hoverable:true, hover:{ text:'{{xlabel}}: {{x}}<br />{{ylabel}}: {{y}}<br />Uncertainty: {{err}}',before:'{{title}}<br />'},css:{'font-size':'0.8em','background-color':obs.observatories[d].html_col} });
+					dataset.push({ data: data[d], points :{show:true, radius: 1.5}, title:(obs.observatories[d].obs_name), color: obs.observatories[d].html_col, lines: { show: false }, clickable: true, hoverable:true, hover:{ text:'{{xlabel}}: {{x}}<br />{{ylabel}}: {{y}}<br />Uncertainty: {{err}}',before:'{{title}}<br />'},css:{'font-size':'0.8em','background-color':obs.observatories[d].html_col} });
 				}
 				dataset.push({data:model,color: "#999999",points:{show:false},lines:{show:true,width:2}, clickable: false, hoverable:false });
 		
