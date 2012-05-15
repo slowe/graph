@@ -153,6 +153,12 @@
 		return "rgb("+r+","+g+","+b+")";
 	}
 
+	function zeroFill(number, width){
+		width -= number.toString().length;
+		if(width > 0) return new Array( width + (/\./.test( number ) ? 2 : 1) ).join( '0' ) + number;
+		return number + ""; // always return a string
+	}
+	
 	// Add commas every 10^3
 	function addCommas(nStr) {
 		nStr += '';
@@ -160,9 +166,7 @@
 		var x1 = x[0];
 		var x2 = x.length > 1 ? '.' + x[1] : '';
 		var rgx = /(\d+)(\d{3})/;
-		while (rgx.test(x1)) {
-			x1 = x1.replace(rgx, '$1' + ',' + '$2');
-		}
+		while (rgx.test(x1)) x1 = x1.replace(rgx, '$1' + ',' + '$2');
 		return x1 + x2;
 	}
 
@@ -403,20 +407,6 @@
 			if(ev.data.me.logging) var d = new Date();
 			ev.data.me.setOptions().calculateData().draw().trigger("resize",{event:ev.event});
 			if(ev.data.me.logging) console.log("Total until end of resize:" + (new Date() - d) + "ms");
-		}).bind("mousemove",{me:this},function(ev){
-			var g = ev.data.me;	// The graph object
-			// Attach hover event
-			if(!g.selecting){
-				d = g.dataAtMousePosition(ev.event.layerX,ev.event.layerY);
-				g.highlight(d);
-				if(typeof d!="undefined"){
-					s = d[0];
-					i = d[1];
-					d = g.data[s];
-					g.trigger("hoverpoint",{event:ev.event,point:d.data[i],xpix:ev.event.layerX,ypix:ii[1],title:d.title,color:d.color});
-				}
-			}
-			return true;
 		}).bind("mousedown",{me:this},function(ev){
 			var g = ev.data.me;	// The graph object
 			if(ev.event.which!=1) return;	// Only zoom on left click
@@ -441,8 +431,22 @@
 			}
 			return true;
 		}).bind("mousemove",{me:this},function(ev){
-			var g = ev.data.me;	 // The graph object
-			if(g.selecting){
+			var g = ev.data.me;	// The graph object
+			// Attach hover event
+			if(!g.selecting){
+				d = g.dataAtMousePosition(ev.event.layerX,ev.event.layerY);
+				g.highlight(d);
+				if(typeof d!="undefined"){
+					s = d[0];
+					i = d[1];
+					d = g.data[s];
+					g.trigger("hoverpoint",{event:ev.event,point:d.data[i],xpix:ev.event.layerX,ypix:ii[1],title:d.title,color:d.color});
+				}
+				if(g.events["mousemove"]){
+					var pos = g.pixel2data(ev.event.layerX,ev.event.layerY);
+					g.trigger("mousemove",{event:ev.event,x:pos.x,y:pos.y});
+				}
+			}else{
 				if(g.within(ev.event.layerX,ev.event.layerY)){
 					g.selectto = [ev.event.layerX,ev.event.layerY];
 					g.canvas.pasteFromClipboard();
@@ -535,6 +539,7 @@
 		if(typeof this.options.yaxis.fit!="boolean") this.options.yaxis.fit = false;
 		if(typeof this.options.xaxis.log!="boolean") this.options.xaxis.log = false;
 		if(typeof this.options.yaxis.log!="boolean") this.options.yaxis.log = false;
+		if(typeof this.options.xaxis.mode=="string" && this.options.xaxis.mode=="time") this.options.xaxis.isDate = true;
 		return this;
 	}
 	Graph.prototype.updateData = function(data) {
@@ -551,7 +556,7 @@
 		if(typeof this.options.labels=="string") this.colours.labels = this.options.grid.color;
 	}
 	Graph.prototype.getGraphRange = function(){
-		this.x = { min: 1e32, max: -1e32, log: this.options.xaxis.log, label:{text:this.options.xaxis.label}, fit:this.options.xaxis.fit };
+		this.x = { min: 1e32, max: -1e32, isDate: this.options.xaxis.isDate, log: this.options.xaxis.log, label:{text:this.options.xaxis.label}, fit:this.options.xaxis.fit };
 		this.y = { min: 1e32, max: -1e32, log: this.options.yaxis.log, label:{text:this.options.yaxis.label}, fit:this.options.yaxis.fit };
 
 		if(this.data.length <= 0) return this;
@@ -666,7 +671,7 @@
 		for(i = 0; i < search.length; i++){
 			dx = x+search[i][0];
 			dy = y+search[i][1];
-			if(dx < this.canvas.wide && dy < this.canvas.tall && is(this.lookup[dx][dy],s)) return this.lookup[dx][dy].split(':');
+			if(dx >= 0 && dy >= 0 && dx < this.canvas.wide && dy < this.canvas.tall && is(this.lookup[dx][dy],s)) return this.lookup[dx][dy].split(':');
 		}
 	}
 	
@@ -709,7 +714,7 @@
 			// Build the hovertext output
 			val = {
 				title: (data.title) ? data.title : "", 
-				xlabel: (this.x.label.text ? this.x.label.text : 'x'),
+				xlabel: (this.x.label.text ? this.x.label.text : (this.x.isDate ? 'Time' : 'x')),
 				ylabel: (this.y.label.text ? this.y.label.text : 'y'),
 				data: data.data[i]
 			}
@@ -718,7 +723,7 @@
 			var html = (typeof data.hover.text=="string") ? data.hover.text : txt;
 			if(typeof data.hover.before=="string") html = data.hover.before+html;
 			if(typeof data.hover.after=="string") html = html+data.hover.after;
-			html = html.replace(/{{ *x *}}/g,val.data.x);
+			html = html.replace(/{{ *x *}}/g,(this.x.isDate ? new Date(val.data.x) : val.data.x));
 			html = html.replace(/{{ *y *}}/g,val.data.y);
 			html = html.replace(/{{ *xlabel *}}/g,val.xlabel);
 			html = html.replace(/{{ *ylabel *}}/g,val.ylabel);
@@ -791,27 +796,58 @@
 			return true;
 		}
 
+		var param = {'name': 'seconds', 'div': 1, 'base': 10};
+		var rg = this[axis].range;
+		var mx = this[axis].max;
+		var mn = this[axis].min;
+		var t_inc;
+		
 		// Calculate reasonable grid line spacings
-		t_inc = Math.pow(10,Math.ceil(G.log10(this[axis].range/10)));
-		t_max = (Math.floor(this[axis].max/t_inc))*t_inc;
-		if(t_max < this[axis].max) t_max += t_inc;
-		t_min = t_max;
+		if(this[axis].isDate){
+			// Dates are in milliseconds
+			// Grid line spacings can range from 1 ms to 10000 years
+			var steps = [{'name': 'seconds','div':1000,'spacings':[0.001,0.002,0.005,0.01,0.02,0.05,0.1,0.25,0.5,1,2,5,10,15]},
+					{'name': 'minutes', 'div':60000,'spacings':[0.5,1,2,5,10,15,20,30]},
+					{'name': 'hours', 'div':3600000,'spacings':[0.5,1,2,4,6]},
+					{'name': 'days', 'div':86400000,'spacings':[0.5,1,2,7]},
+					{'name': 'weeks', 'div':7*86400000,'spacings':[1,2,4,8]},
+					{'name': 'years', 'div':31557600000,'spacings':[0.25,0.5,1,2,5,10,20,50,100,200,500,1000,2000,5000]}];
+			var t_div;
+
+			for(var s = 0; s < steps.length ; s++){
+				for(var sp = 0; sp < steps[s].spacings.length; sp++){
+					var n = Math.ceil(this[axis].range/(steps[s].div*steps[s].spacings[sp]));
+					if(n < 1) continue;
+					if(!t_div || (n > 3 && n < t_div)){
+						t_div = n;
+						this[axis].spacing = {'name':steps[s].name,'fract':steps[s].spacings[sp]};
+						t_inc = (steps[s].div*steps[s].spacings[sp]);
+					}
+				}
+			}
+		}else t_inc = Math.pow(param.base,Math.floor(Math.log(rg)/Math.log(param.base)));
+
+		//t_inc = Math.pow(10,Math.ceil(G.log10(this[axis].range/10)));
+		var t_max = (Math.floor(mx/t_inc))*t_inc;
+		if(t_max < mx) t_max += t_inc;
+		var t_min = t_max;
 		var i = 0;
 		do {
 			i++;
 			t_min -= t_inc;
-		}while(t_min > this[axis].min);
+		}while(t_min > mn);
 
 		// Test for really tiny values that might mess up the calculation
 		if(Math.abs(t_min) < 1E-15) t_min = 0.0;
 	
 		// Add more tick marks if we only have a few
-		while(i < 5) {
+		while(i < (this[axis].isDate ? 3 : 5)) {
 			t_inc /= 2.0;
-			if((t_min + t_inc) <= this[axis].min) t_min += t_inc;
-			if((t_max - t_inc) >= this[axis].max) t_max -= t_inc ;
+			if((t_min + t_inc) <= mn) t_min += t_inc;
+			if((t_max - t_inc) >= mx) t_max -= t_inc ;
 			i = i*2;
 		}
+
 		// Set the first/last gridline values as well as the spacing
 		this[axis].gmin = t_min;
 		this[axis].gmax = t_max;
@@ -908,6 +944,7 @@
 			a = (j==this.y.gmax) ? fshalf : (j==this.y.gmin ? -fshalf : 0);
 			this.canvas.ctx.beginPath();
 			this.canvas.ctx.strokeStyle = (this.options.grid.color ? this.options.grid.color : 'rgba(0,0,0,0.5)');
+			this.canvas.ctx.fillStyle = (this.y.label.color ? this.y.label.color : "black");
 			this.canvas.ctx.fillText((this.y.log ? Math.pow(10, j) : j),x1-3,(y+a).toFixed(1));
 			if(grid && i != this.y.gmin && i != this.y.gmax){
 				this.canvas.ctx.moveTo(x1,y);
@@ -952,7 +989,10 @@
 			this.canvas.ctx.beginPath();
 			this.canvas.ctx.textAlign = (j==this.x.gmax) ? 'end' : (j==this.x.gmin ? 'start' : 'center');
 			this.canvas.ctx.strokeStyle = (this.options.grid.color ? this.options.grid.color : 'rgba(0,0,0,0.5)');
-			this.canvas.ctx.fillText(addCommas((this.x.log ? Math.pow(10, j) : j)),x.toFixed(1),(y1+3).toFixed(1));
+			var str = (this.x.isDate) ? this.formatLabelDate(j) : addCommas((this.x.log ? Math.pow(10, j) : j))
+			var ds = str.split(/\n/);
+			this.canvas.ctx.fillStyle = (this.x.label.color ? this.x.label.color : "black");
+			for(var d = 0; d < ds.length ; d++) this.canvas.ctx.fillText(ds[d],x.toFixed(1),(y1+3+d*this.chart.fontsize).toFixed(1));
 			if(grid && j != this.x.gmin && j != this.x.gmax){
 				this.canvas.ctx.moveTo(x,y1);
 				this.canvas.ctx.lineTo(x,y2);
@@ -978,6 +1018,24 @@
 			}
 		}
 		return this;
+	}
+
+	Graph.prototype.formatLabelDate = function(d){
+		d = new Date(parseInt(d));
+		var hr = zeroFill(d.getUTCHours(),2);
+		var mn = zeroFill(d.getUTCMinutes(),2);
+		var sc = zeroFill(d.getUTCSeconds()+d.getUTCMilliseconds()/1000,2);
+		var dy = zeroFill(d.getUTCDate(),2);
+		var mo = zeroFill(d.getUTCMonth()+1,2);
+		var yr = d.getUTCFullYear();
+		var n = this.x.spacing.name;
+		if(n=="seconds") return (this.x.spacing.fract >= 1 ? hr+":"+mn+":"+sc : ""+sc);
+		else if(n=="minutes") return hr+":"+mn+(d.getUTCSeconds()==0 ? "" : ":"+sc);
+		else if(n=="hours") return hr+":"+mn;
+		else if(n=="days") return (this.x.spacing.fract >= 1 ? yr+"/"+mo+"/"+dy : yr+"/"+mo+"/"+dy+' '+hr+':'+mn);
+		else if(n=="weeks") return yr+"/"+mo+"/"+dy+(hr=="00" ? '' : ' '+Math.round((d.getUTCHours()+(d.getUTCMinutes()/60)))+'h');
+		else if(n=="years") return ((this.x.spacing.fract >= 1) ? ""+(d.getUTCFullYear()+Math.round((d.getUTCMonth()+1)/12)) : (Math.round(d.getUTCMonth()+1)==12 ? (d.getUTCFullYear()+1)+"/01/01" : d.getUTCFullYear()+'/'+mo+'/01'));
+		else return hr+":"+mn+":"+sc;
 	}
 
 	// Function to calculate the x,y coordinates for each data point. 
@@ -1035,8 +1093,8 @@
 				this.canvas.ctx.closePath();
 			}
 		
+			if(typeof this.data[s].points=="undefined") continue;
 			var rad = (this.data[s].points.radius) ? this.data[s].points.radius : 1;
-
 
 			if(this.data[s].points.show){
 				this.canvas.ctx.fillStyle = (this.data[s].color ? parseColour(this.data[s].color) : '#ffcc00');
