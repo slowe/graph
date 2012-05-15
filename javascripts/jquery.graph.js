@@ -691,7 +691,7 @@
 			this.canvas.ctx.beginPath();
 
 			this.canvas.ctx.lineWidth = 1.5;
-			this.canvas.ctx.strokeStyle = (data.color ? parseColour(data.color) : '#ffcc00');
+			this.canvas.ctx.strokeStyle = (data.color ? parseColour(data.color) : '#df0000');
 			this.canvas.ctx.fillStyle = 'rgba(255,255,255,0.3)';
 			this.canvas.ctx.arc(ii[0],ii[1],rad*6,0,twopi,false);
 			this.canvas.ctx.fill();
@@ -700,7 +700,7 @@
 
 			this.canvas.ctx.beginPath();
 			this.canvas.ctx.arc(ii[0],ii[1],rad,0,twopi,false);
-			this.canvas.ctx.strokeStyle = (data.color ? parseColour(data.color) : '#ffcc00');
+			this.canvas.ctx.strokeStyle = (data.color ? parseColour(data.color) : '#df0000');
 			this.canvas.ctx.stroke();
 			this.canvas.ctx.closePath();
 			
@@ -1073,7 +1073,7 @@
 
 		for(var s = 0; s < this.data.length ; s++){
 
-			this.canvas.ctx.strokeStyle = (this.data[s].color ? parseColour(this.data[s].color) : '#ffcc00');
+			this.canvas.ctx.strokeStyle = (this.data[s].color ? parseColour(this.data[s].color) : '#df0000');
 
 			// Draw lines
 			if(this.data[s].lines.show){
@@ -1093,11 +1093,11 @@
 				this.canvas.ctx.closePath();
 			}
 		
-			if(typeof this.data[s].points=="undefined") continue;
+			if(typeof this.data[s].points=="undefined") this.data[s].points = { show: true };
 			var rad = (this.data[s].points.radius) ? this.data[s].points.radius : 1;
 
 			if(this.data[s].points.show){
-				this.canvas.ctx.fillStyle = (this.data[s].color ? parseColour(this.data[s].color) : '#ffcc00');
+				this.canvas.ctx.fillStyle = (this.data[s].color ? parseColour(this.data[s].color) : '#df0000');
 				this.canvas.ctx.lineWidth = (0.8);
 				for(var i = 0; i < this.data[s].x.length ; i++){
 					if(this.data[s].x[i] && this.data[s].y[i] && this.data[s].data[i].x >= this.x.min && this.data[s].data[i].x <= this.x.max && this.data[s].data[i].y >= this.y.min && this.data[s].data[i].y <= this.y.max){
