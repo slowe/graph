@@ -231,6 +231,7 @@
 		if(!this.id) return;
 		// Construct the <canvas> container
 		this.container = $('#'+this.id);
+		this.origcontainer = this.container[0].outerHTML;
 		if(this.container.length == 0){
 			// No appropriate container exists. So we'll make one.
 			$('body').append('<div id="'+this.id+'"></div>');
@@ -279,6 +280,8 @@
 		this.canvas.bind("mousedown",{me:this}, function(e){ e.data.me.trigger("mousedown",{event:e}); });
 		this.canvas.bind("mousemove",{me:this}, function(e){ e.data.me.trigger("mousemove",{event:e}); });
 		this.canvas.bind("mouseup",{me:this}, function(e){ e.data.me.trigger("mouseup",{event:e}); });
+		this.canvas.bind("mouseover",{me:this}, function(e){ e.data.me.trigger("mouseover",{event:e}); });
+		this.canvas.bind("mouseleave",{me:this}, function(e){ e.data.me.trigger("mouseleave",{event:e}); });
 	}
 	// Attach a handler to an event for the Canvas object in a style similar to that used by jQuery
 	//   .bind(eventType[,eventData],handler(eventObject));
@@ -414,7 +417,7 @@
 			d = g.dataAtMousePosition(ev.event.layerX,ev.event.layerY);
 			if(is(d,"undefined")){
 				// No data so we'll start the zoom selection
-				if(g.within(ev.event.layerX,ev.event.layerY)){
+				if(g.within(ev.event.layerX,ev.event.layerY) && g.options.zoomable){
 					g.selectfrom = [ev.event.layerX,ev.event.layerY];
 					g.selectto = g.selectfrom;
 					g.selecting = true;
@@ -449,17 +452,27 @@
 			}else{
 				if(g.within(ev.event.layerX,ev.event.layerY)){
 					g.selectto = [ev.event.layerX,ev.event.layerY];
+					if(g.options.zoommode == "x"){
+						g.selectfrom[1] = g.getYPos(g.y.min);
+						g.selectto[1] = g.getYPos(g.y.max);
+					}
+					if(g.options.zoommode == "y"){
+						g.selectfrom[0] = g.getXPos(g.x.min);
+						g.selectto[0] = g.getXPos(g.x.max);
+					}
 					g.canvas.pasteFromClipboard();
 					// Draw selection rectangle
 					g.canvas.ctx.beginPath();
-					g.canvas.ctx.strokeStyle = 'rgb(0,0,0)';
+					g.canvas.ctx.fillStyle = 'rgba(0,0,0,0.1)';
 					g.canvas.ctx.lineWidth = g.options.grid.border;
-					g.canvas.ctx.strokeRect(g.selectfrom[0]-0.5,g.selectfrom[1]-0.5,g.selectto[0]-g.selectfrom[0],g.selectto[1]-g.selectfrom[1]);
-					g.canvas.ctx.stroke();
+					g.canvas.ctx.fillRect(g.selectfrom[0]-0.5,g.selectfrom[1]-0.5,g.selectto[0]-g.selectfrom[0],g.selectto[1]-g.selectfrom[1]);
+					g.canvas.ctx.fill();
 					g.canvas.ctx.closePath();
 				}
 			}
 			return true;
+		}).bind("mouseleave",{me:this},function(ev){
+			ev.data.me.canvas.trigger('mouseup',{event:ev.event})
 		}).bind("mouseup",{me:this},function(ev){
 			var g = ev.data.me;	 // The graph object
 			if(g.selecting){
@@ -472,12 +485,23 @@
 					xhi = (c1.x < c2.x) ? c2.x : c1.x;
 					ylo = (c1.y < c2.y) ? c1.y : c2.y;
 					yhi = (c1.y < c2.y) ? c2.y : c1.y;
+					if(g.options.zoommode == "x"){
+						// If we are only zooming in the x-axis we don't change the y values
+						ylo = g.y.datamin;
+						yhi = g.y.datamax;
+					}
+					if(g.options.zoommode == "y"){
+						// If we are only zooming in the y-axis we don't change the x values
+						xlo = g.x.datamin;
+						xhi = g.x.datamax;
+					}
 					g.zoom(xlo,xhi,ylo,yhi);
 				}
 			}
 			g.selecting = false;
 			g.canvas.pasteFromClipboard();
 			g.drawOverlay();
+			g.trigger("mouseup",{event:ev.event});
 			return true;
 		})
 
@@ -528,22 +552,25 @@
 		this.options = G.extend(this.options, options);
 
 		// Set defaults for options that haven't already been set
-		if(typeof this.options.grid!="object") this.options.grid = {};
-		if(typeof this.options.grid.show!="boolean") this.options.grid.show = true;
-		if(typeof this.options.grid.border!="number") this.options.grid.border = 1;
-		if(typeof this.options.xaxis!="object") this.options.xaxis = {};
-		if(typeof this.options.yaxis!="object") this.options.yaxis = {};
-		if(typeof this.options.xaxis.label!="string") this.options.xaxis.label = "";
-		if(typeof this.options.yaxis.label!="string") this.options.yaxis.label = "";
-		if(typeof this.options.xaxis.fit!="boolean") this.options.xaxis.fit = false;
-		if(typeof this.options.yaxis.fit!="boolean") this.options.yaxis.fit = false;
-		if(typeof this.options.xaxis.log!="boolean") this.options.xaxis.log = false;
-		if(typeof this.options.yaxis.log!="boolean") this.options.yaxis.log = false;
-		if(typeof this.options.xaxis.mode=="string" && this.options.xaxis.mode=="time") this.options.xaxis.isDate = true;
+		if(typeof this.options.grid!=="object") this.options.grid = {};
+		if(typeof this.options.grid.show!=="boolean") this.options.grid.show = true;
+		if(typeof this.options.grid.border!=="number") this.options.grid.border = 1;
+		if(typeof this.options.xaxis!=="object") this.options.xaxis = {};
+		if(typeof this.options.yaxis!=="object") this.options.yaxis = {};
+		if(typeof this.options.xaxis.label!=="string") this.options.xaxis.label = "";
+		if(typeof this.options.yaxis.label!=="string") this.options.yaxis.label = "";
+		if(typeof this.options.xaxis.fit!=="boolean") this.options.xaxis.fit = false;
+		if(typeof this.options.yaxis.fit!=="boolean") this.options.yaxis.fit = false;
+		if(typeof this.options.xaxis.log!=="boolean") this.options.xaxis.log = false;
+		if(typeof this.options.yaxis.log!=="boolean") this.options.yaxis.log = false;
+		if(typeof this.options.zoommode!=="string") this.options.zoommode = "both";
+		if(typeof this.options.zoomable!=="boolean") this.options.zoomable = true;
+		if(typeof this.options.xaxis.mode==="string" && this.options.xaxis.mode==="time") this.options.xaxis.isDate = true;
 		return this;
 	}
 	Graph.prototype.updateData = function(data) {
-		this.data = (data.length > 1) ? data : [data];
+		if(!data) return this;
+		this.data = (typeof data.length === "number") ? data : [data];
 		this.getGraphRange();
 		this.calculateData();
 		this.clear();
@@ -1140,6 +1167,11 @@
 		this.lines = [];
 		return this;
 	}
+	Graph.prototype.remove = function(){
+		this.canvas.container.replaceWith(this.canvas.origcontainer);
+		return {};
+	}
+
 	Graph.prototype.drawLines = function(){
 		// Loop over each line
 		for(var l = 0; l < this.lines.length ; l++){
