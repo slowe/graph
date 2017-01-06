@@ -437,7 +437,7 @@
 			var g = ev.data.me;	// The graph object
 			// Attach hover event
 			if(!g.selecting){
-				d = g.dataAtMousePosition(ev.event.layerX,ev.event.layerY);
+				d = g.dataAtMousePosition(ev.event.offsetX,ev.event.offsetY);
 				g.highlight(d);
 				if(typeof d!="undefined"){
 					s = d[0];
@@ -463,7 +463,7 @@
 					g.canvas.pasteFromClipboard();
 					// Draw selection rectangle
 					g.canvas.ctx.beginPath();
-					g.canvas.ctx.fillStyle = 'rgba(0,0,0,0.1)';
+					g.canvas.ctx.fillStyle = g.options.grid.color || 'rgba(0,0,0,0.1)';
 					g.canvas.ctx.lineWidth = g.options.grid.border;
 					g.canvas.ctx.fillRect(g.selectfrom[0]-0.5,g.selectfrom[1]-0.5,g.selectto[0]-g.selectfrom[0],g.selectto[1]-g.selectfrom[1]);
 					g.canvas.ctx.fill();
@@ -570,6 +570,9 @@
 	}
 	Graph.prototype.updateData = function(data) {
 		if(!data) return this;
+		for(var i = 0; i < data.length; i++){
+			if(typeof data[i].show!=="boolean") data[i].show = true;
+		}
 		this.data = (typeof data.length === "number") ? data : [data];
 		this.getGraphRange();
 		this.calculateData();
@@ -685,8 +688,10 @@
 	
 	// Provide the pixel coordinates (x,y) and return the data-space values
 	Graph.prototype.pixel2data = function(x,y){
-		x = this.x.min+((x-this.chart.left)/this.chart.width)*this.x.range;
-		y = this.y.min+(1-(y-this.chart.top)/this.chart.height)*this.y.range;
+		if(typeof this.x.min==="object") x = (this.x.min.getTime()+((x-this.chart.left)/this.chart.width)*this.x.range);
+		else x = this.x.min+((x-this.chart.left)/this.chart.width)*this.x.range;
+		if(typeof this.y.min==="object") y = (this.y.min.getTime()+(1-(y-this.chart.top)/this.chart.height)*this.y.range);
+		else y = this.y.min+(1-(y-this.chart.top)/this.chart.height)*this.y.range;
 		return {x:x,y:y};
 	}
 	
@@ -694,7 +699,7 @@
 		s = "string";
 		var found = "";
 		// Define a search pattern moving out in pixels
-		search = [[0,0],[-1,0],[1,0],[0,-1],[0,1],[1,1],[1,-1],[-1,1],[-1,-1],[-2,0],[0,-2],[2,0],[0,2],[-1,-2],[1,-2],[2,-1],[2,1],[1,2],[-1,2],[-2,1],[-2,-1],[-2,-2],[-2,2],[2,2],[2,-2]];
+		search = [[0,0],[-1,0],[1,0],[0,-1],[0,1],[1,1],[1,-1],[-1,1],[-1,-1],[-2,0],[0,-2],[2,0],[0,2],[-1,-2],[1,-2],[2,-1],[2,1],[1,2],[-1,2],[-2,1],[-2,-1],[-2,-2],[-2,2],[2,2],[2,-2],[1,-3],[-1,3],[-3,-1],[-3,1],[-1,3],[1,3],[3,1],[3,-1],[3,-3],[-3,-3],[-3,3],[3,3]];
 		for(i = 0; i < search.length; i++){
 			dx = x+search[i][0];
 			dy = y+search[i][1];
@@ -720,7 +725,7 @@
 			this.canvas.ctx.lineWidth = 1.5;
 			this.canvas.ctx.strokeStyle = (data.color ? parseColour(data.color) : '#df0000');
 			this.canvas.ctx.fillStyle = 'rgba(255,255,255,0.3)';
-			this.canvas.ctx.arc(ii[0],ii[1],rad*6,0,twopi,false);
+			this.canvas.ctx.arc(ii[0],ii[1],(rad == 1 ? rad*6 : rad*3),0,twopi,false);
 			this.canvas.ctx.fill();
 			this.canvas.ctx.stroke();
 			this.canvas.ctx.closePath();
@@ -761,7 +766,13 @@
 				var b = html.indexOf("}}");
 				var pattern = html.substring(a,b);
 				pattern = pattern.replace(/^\s+|\s+$/g,"");	// trim
-				html = html.replace(new RegExp("{{ *"+pattern+" *}}","g"),(typeof val.data[pattern]=="string") ? val.data[pattern] : "");
+				var reg = new RegExp("{{ *"+pattern+" *}}","g");
+				// First we try for a value for the data point
+				if(typeof val.data[pattern] === "string") html = html.replace(reg,val.data[pattern]);
+				// Next we try for a value for the data set
+				else if(typeof data[pattern] === "string") html = html.replace(reg,data[pattern]);
+				// Remove the pattern
+				else html = html.replace(reg,"");
 			}
 			
 
@@ -919,7 +930,7 @@
 		this.canvas.ctx.textBaseline = 'middle';
 
 		// Draw main rectangle
-		this.canvas.ctx.strokeStyle = 'rgb(0,0,0)';
+		this.canvas.ctx.strokeStyle = this.options.grid.color || 'rgb(0,0,0)';
 		this.canvas.ctx.lineWidth = this.options.grid.border;
 		if(typeof this.options.grid.background=="string"){
 			this.canvas.ctx.fillStyle = this.options.grid.background;
@@ -931,13 +942,13 @@
 		// Draw x label
 		if(this.x.label.text!=""){
 			this.canvas.ctx.textAlign = "center";
-			this.canvas.ctx.fillStyle = (this.x.label.color ? this.x.label.color : "black");
+			this.canvas.ctx.fillStyle = (this.options.grid.color ? this.options.grid.color : "black");
 			this.canvas.ctx.fillText(this.x.label.text,o.left+o.width/2, this.options.height-Math.round(this.chart.fontsize/2)-this.chart.padding);
 		}
 
 		if(this.y.label.text!=""){
 			this.canvas.ctx.textAlign = "center";
-			this.canvas.ctx.fillStyle = (this.x.label.color ? this.x.label.color : "black");
+			this.canvas.ctx.fillStyle = (this.options.grid.color ? this.options.grid.color : "black");
 			this.canvas.ctx.rotate(-rot);
 			this.canvas.ctx.fillText(this.y.label.text,-(o.top+(o.height/2)),Math.round(this.chart.fontsize/2)+this.chart.padding);
 			this.canvas.ctx.rotate(rot);
@@ -971,8 +982,8 @@
 			a = (j==this.y.gmax) ? fshalf : (j==this.y.gmin ? -fshalf : 0);
 			this.canvas.ctx.beginPath();
 			this.canvas.ctx.strokeStyle = (this.options.grid.color ? this.options.grid.color : 'rgba(0,0,0,0.5)');
-			this.canvas.ctx.fillStyle = (this.y.label.color ? this.y.label.color : "black");
-			this.canvas.ctx.fillText((this.y.log ? Math.pow(10, j) : j),x1-3,(y+a).toFixed(1));
+			this.canvas.ctx.fillStyle = (this.options.grid.color ? this.options.grid.color : "black");
+			this.canvas.ctx.fillText((this.y.log ? Math.pow(10, j) : j.replace(/\.0+$/,"")),x1-3,(y+a).toFixed(1));
 			if(grid && i != this.y.gmin && i != this.y.gmax){
 				this.canvas.ctx.moveTo(x1,y);
 				this.canvas.ctx.lineTo(x2,y);
@@ -1018,7 +1029,7 @@
 			this.canvas.ctx.strokeStyle = (this.options.grid.color ? this.options.grid.color : 'rgba(0,0,0,0.5)');
 			var str = (this.x.isDate) ? this.formatLabelDate(j) : addCommas((this.x.log ? Math.pow(10, j) : j))
 			var ds = str.split(/\n/);
-			this.canvas.ctx.fillStyle = (this.x.label.color ? this.x.label.color : "black");
+			this.canvas.ctx.fillStyle = (this.options.grid.color ? this.options.grid.color : "black");
 			for(var d = 0; d < ds.length ; d++) this.canvas.ctx.fillText(ds[d],x.toFixed(1),(y1+3+d*this.chart.fontsize).toFixed(1));
 			if(grid && j != this.x.gmin && j != this.x.gmax){
 				this.canvas.ctx.moveTo(x,y1);
@@ -1077,16 +1088,18 @@
 		}
 
 		for(var s = 0; s < this.data.length ; s++){
-			l = this.data[s].data.length
-			this.data[s].x = new Array(l);
-			this.data[s].y = new Array(l);
-			for(var i = 0; i < l ; i++){
-				ii = this.getPixPos(this.data[s].data[i].x,this.data[s].data[i].y);
-				x = Math.round(ii[0]);
-				y = Math.round(ii[1]);
-				if(this.data[s].hoverable && typeof ii[0]=="number" && typeof ii[1]=="number" && x < this.lookup.length && y < this.lookup[x].length && this.data[s].data[i].x >= this.x.min && this.data[s].data[i].x <= this.x.max && this.data[s].data[i].y >= this.y.min && this.data[s].data[i].y <= this.y.max) this.lookup[x][y] = s+":"+i;
-				this.data[s].x[i] = ii[0];
-				this.data[s].y[i] = ii[1];
+			if(this.data[s].show){
+				l = this.data[s].data.length
+				this.data[s].x = new Array(l);
+				this.data[s].y = new Array(l);
+				for(var i = 0; i < l ; i++){
+					ii = this.getPixPos(this.data[s].data[i].x,this.data[s].data[i].y);
+					x = Math.round(ii[0]);
+					y = Math.round(ii[1]);
+					if(this.data[s].hoverable && typeof ii[0]=="number" && typeof ii[1]=="number" && x < this.lookup.length && y < this.lookup[x].length && this.data[s].data[i].x >= this.x.min && this.data[s].data[i].x <= this.x.max && this.data[s].data[i].y >= this.y.min && this.data[s].data[i].y <= this.y.max) this.lookup[x][y] = s+":"+i;
+					this.data[s].x[i] = ii[0];
+					this.data[s].y[i] = ii[1];
+				}
 			}
 		}
 		return this;
@@ -1100,55 +1113,58 @@
 
 		for(var s = 0; s < this.data.length ; s++){
 
-			this.canvas.ctx.strokeStyle = (this.data[s].color ? parseColour(this.data[s].color) : '#df0000');
+			if(this.data[s].show){
+				this.canvas.ctx.strokeStyle = (this.data[s].color ? parseColour(this.data[s].color) : '#df0000');
 
-			// Draw lines
-			if(this.data[s].lines.show){
-				this.canvas.ctx.beginPath();
-				this.canvas.ctx.lineWidth = (this.data[s].lines.width ? this.data[s].lines.width : 1);
-				for(var i = 0; i < this.data[s].x.length ; i++){
-					if(this.data[s].x[i] && this.data[s].y[i]){
-						if(this.data[s].data[i].x >= this.x.min && this.data[s].data[i].x <= this.x.max && this.data[s].data[i].y >= this.y.min && this.data[s].data[i].y <= this.y.max){
-							if(i == 0) this.canvas.ctx.moveTo(this.data[s].x[i],this.data[s].y[i]);
-							else this.canvas.ctx.lineTo(this.data[s].x[i],this.data[s].y[i]);
-						}else{
-							this.canvas.ctx.moveTo(this.data[s].x[i],this.data[s].y[i]);
+				// Draw lines
+				if(this.data[s].lines.show){
+					this.canvas.ctx.beginPath();
+					this.canvas.ctx.lineWidth = (this.data[s].lines.width ? this.data[s].lines.width : 1);
+					for(var i = 0; i < this.data[s].x.length ; i++){
+						if(this.data[s].x[i] && this.data[s].y[i]){
+							if(this.data[s].data[i].x >= this.x.min && this.data[s].data[i].x <= this.x.max && this.data[s].data[i].y >= this.y.min && this.data[s].data[i].y <= this.y.max){
+								if(i == 0) this.canvas.ctx.moveTo(this.data[s].x[i],this.data[s].y[i]);
+								else this.canvas.ctx.lineTo(this.data[s].x[i],this.data[s].y[i]);
+							}else{
+								this.canvas.ctx.moveTo(this.data[s].x[i],this.data[s].y[i]);
+							}
 						}
 					}
+					this.canvas.ctx.stroke();
+					this.canvas.ctx.closePath();
 				}
-				this.canvas.ctx.stroke();
-				this.canvas.ctx.closePath();
-			}
 		
-			if(typeof this.data[s].points=="undefined") this.data[s].points = { show: true };
-			var rad = (this.data[s].points.radius) ? this.data[s].points.radius : 1;
+				if(typeof this.data[s].points=="undefined") this.data[s].points = { show: true };
+				var rad = (this.data[s].points.radius) ? this.data[s].points.radius : 1;
 
-			if(this.data[s].points.show){
-				this.canvas.ctx.fillStyle = (this.data[s].color ? parseColour(this.data[s].color) : '#df0000');
-				this.canvas.ctx.lineWidth = (0.8);
-				for(var i = 0; i < this.data[s].x.length ; i++){
-					if(this.data[s].x[i] && this.data[s].y[i] && this.data[s].data[i].x >= this.x.min && this.data[s].data[i].x <= this.x.max && this.data[s].data[i].y >= this.y.min && this.data[s].data[i].y <= this.y.max){
-						if(this.data[s].y[i] < this.chart.top+this.chart.height){
-							this.canvas.ctx.moveTo(this.data[s].x[i],this.data[s].y[i]);
-							this.canvas.ctx.beginPath();
-							this.canvas.ctx.arc(this.data[s].x[i],this.data[s].y[i],rad,0,twopi,false);
-							this.canvas.ctx.stroke();
-							e = (this.data[s].data[i].err) ? (this.data[s].data[i].err.length==2 ? 2 : 1) : 0;
-							if(e > 0){
-								if(e == 2){
-									hi = this.getYPos(this.data[s].data[i].y+this.data[s].data[i].err[0]);
-									lo = this.getYPos(this.data[s].data[i].y-this.data[s].data[i].err[1]);
-								}else{
-									hi = this.getYPos(this.data[s].data[i].y+this.data[s].data[i].err);
-									lo = this.getYPos(this.data[s].data[i].y-this.data[s].data[i].err);
-								}
+				if(this.data[s].points.show){
+					this.canvas.ctx.fillStyle = (this.data[s].color ? parseColour(this.data[s].color) : '#df0000');
+					this.canvas.ctx.lineWidth = (0.8);
+					for(var i = 0; i < this.data[s].x.length ; i++){
+						if(this.data[s].x[i] && this.data[s].y[i] && this.data[s].data[i].x >= this.x.min && this.data[s].data[i].x <= this.x.max && this.data[s].data[i].y >= this.y.min && this.data[s].data[i].y <= this.y.max){
+							if(this.data[s].y[i] <= this.chart.top+this.chart.height){
+
+								this.canvas.ctx.moveTo(this.data[s].x[i],this.data[s].y[i]);
+								this.canvas.ctx.beginPath();
+								this.canvas.ctx.arc(this.data[s].x[i],this.data[s].y[i],rad,0,twopi,false);
+								this.canvas.ctx.fill();
+								e = (this.data[s].data[i].err) ? (this.data[s].data[i].err.length==2 ? 2 : 1) : 0;
+								if(e > 0){
+									if(e == 2){
+										hi = this.getYPos(this.data[s].data[i].y+this.data[s].data[i].err[0]);
+										lo = this.getYPos(this.data[s].data[i].y-this.data[s].data[i].err[1]);
+									}else{
+										hi = this.getYPos(this.data[s].data[i].y+this.data[s].data[i].err);
+										lo = this.getYPos(this.data[s].data[i].y-this.data[s].data[i].err);
+									}
 								
-								if(hi && lo){
-									this.canvas.ctx.beginPath();
-									this.canvas.ctx.moveTo(this.data[s].x[i],lo);
-									this.canvas.ctx.lineTo(this.data[s].x[i],hi);
-									this.canvas.ctx.stroke();
-									this.canvas.ctx.closePath();
+									if(hi && lo){
+										this.canvas.ctx.beginPath();
+										this.canvas.ctx.moveTo(this.data[s].x[i],lo);
+										this.canvas.ctx.lineTo(this.data[s].x[i],hi);
+										this.canvas.ctx.stroke();
+										this.canvas.ctx.closePath();
+									}
 								}
 							}
 						}
@@ -1209,6 +1225,7 @@
 	
 	// Draw everything
 	Graph.prototype.draw = function(){
+		this.clear();
 		this.drawAxes();
 		this.drawData();
 		this.canvas.copyToClipboard();
