@@ -387,7 +387,7 @@
 	//   options (object) contains any customisation options for the graph as a whole e.g. options = { xaxis:{ label:'Time (HJD)' },yaxis: { label: 'Delta (mag)' }};
 	function Graph(element, data, options){
 		// Define some variables
-		this.version = "0.1.2";
+		this.version = "0.2.1";
 		this.logging = false;
 		this.start = new Date();
 		if(typeof element!="string") return;
@@ -463,7 +463,7 @@
 					g.canvas.pasteFromClipboard();
 					// Draw selection rectangle
 					g.canvas.ctx.beginPath();
-					g.canvas.ctx.fillStyle = g.options.grid.color || 'rgba(0,0,0,0.1)';
+					g.canvas.ctx.fillStyle = g.options.grid.colorZoom || 'rgba(0,0,0,0.1)';
 					g.canvas.ctx.lineWidth = g.options.grid.border;
 					g.canvas.ctx.fillRect(g.selectfrom[0]-0.5,g.selectfrom[1]-0.5,g.selectto[0]-g.selectfrom[0],g.selectto[1]-g.selectfrom[1]);
 					g.canvas.ctx.fill();
@@ -472,7 +472,12 @@
 			}
 			return true;
 		}).bind("mouseleave",{me:this},function(ev){
-			ev.data.me.canvas.trigger('mouseup',{event:ev.event})
+			if(ev.event.offsetX >= ev.data.me.options.width) ev.event.layerX = ev.data.me.options.width;
+			if(ev.event.offsetX <= 0) ev.event.layerX = 0;
+			if(ev.event.offsetY >= ev.data.me.options.height) ev.event.layerY = ev.data.me.options.height;
+			if(ev.event.offsetY <= 0) ev.event.layerY = 0;
+			ev.data.me.canvas.trigger('mousemove',{event:ev.event});
+			ev.data.me.canvas.trigger('mouseup',{event:ev.event});
 		}).bind("mouseup",{me:this},function(ev){
 			var g = ev.data.me;	 // The graph object
 			if(g.selecting){
@@ -802,7 +807,9 @@
 
 		// Set the min/max if provided
 		if(typeof max=="number") this[axis].max = max;
+		else if(typeof max=="object" && typeof max.getTime==="function") this[axis].max = max.getTime();
 		if(typeof min=="number") this[axis].min = min;
+		else if(typeof min=="object" && typeof min.getTime==="function") this[axis].min = min.getTime();
 		// Set the range of the data
 		this[axis].range = this[axis].max - this[axis].min;
 
